@@ -137,14 +137,14 @@ const Art = (() => {
       const foot = P2(P.feet[k]);
       let poly, paw;
       if (k[0] === 'F') {
-        const SJ = add(S, V(1 + dx, 3 + dy)), r = ik(SJ, add(foot, V(-0.6, -2.4)), 10.5, 10, 1);
+        const SJ = add(S, V(1 + dx, 3 + dy)), r = ik(SJ, add(foot, V(-0.6, -2.4)), 12, 11.5, 1);
         const pawC = add(r.end, V(0.9, 2.2));
         poly = limb([[add(SJ, V(0, -3)), 5.2, 5.6], [SJ, 5, 5.4], [r.joint, 3.5, 3.9], [lerpV(r.joint, r.end, 0.5), 2.9, 3.1], [r.end, 2.7, 2.8]]);
         paw = ell(pawC.x, pawC.y, 3.6, 2.4, 0, 14);
         legs[k] = { paw: pawC };
       } else {
         const HJ = add(H, V(-1 + dx, 2 + dy)), mv = metaV(P.meta[k] ?? 0.3);
-        const r = ik(HJ, add(foot, mv, 8), 11, 10, -1);
+        const r = ik(HJ, add(foot, mv, 8), 12.5, 11, -1);
         const hock = r.end, pawB = add(hock, mv, -8);
         poly = limb([[add(HJ, sub(HJ, r.joint), 0.25), 7.5, 8.5], [HJ, 7.5, 9], [lerpV(HJ, r.joint, 0.55), 6, 6.8], [r.joint, 4, 4.6],
           [lerpV(r.joint, hock, 0.5), 3, 3.3], [hock, 2.3, 2.9], [lerpV(hock, pawB, 0.6), 2.3, 2.4], [pawB, 2.4, 2.4]]);
@@ -184,16 +184,16 @@ const Art = (() => {
 
   // ---------- позы ----------
   const STAND = {
-    H: [-20, -26], S: [16, -28],
-    feet: { FL: [19, -2.4], FR: [15.5, -2.4], HL: [-19, -2.4], HR: [-23, -2.4] }, meta: { HL: 0.3, HR: 0.3 },
+    H: [-17, -29.5], S: [15, -31],
+    feet: { FL: [18, -2.4], FR: [14.5, -2.4], HL: [-16, -2.4], HR: [-20, -2.4] }, meta: { HL: 0.3, HR: 0.3 },
     neck: 0.8, neckLen: 13, headTilt: 0, ears: 0,
     tail: { a: 3.6, curl: -1.5, wave: 0, ph: 0, len: 34 }, tailFront: 0,
   };
   const SIT = {
-    H: [-11, -10], S: [5, -28],
+    H: [-10, -10], S: [5, -31],
     feet: { FL: [10, -2.4], FR: [6.5, -2.4], HL: [0, -2.4], HR: [-3, -2.4] }, meta: { HL: 1.45, HR: 1.45 },
     neck: 1.25, neckLen: 11.5, headTilt: 0.05, ears: 0,
-    tail: { a: 3.75, curl: 3.0, wave: 0, ph: 0, len: 34 }, tailFront: 1,
+    tail: { a: 4.5, curl: 2.1, wave: 0, ph: 0, len: 34 }, tailFront: 1,
   };
   const LOAF = {
     H: [-16, -10.5], S: [12, -11],
@@ -214,13 +214,13 @@ const Art = (() => {
     tail: { a: 3.15, curl: 0.2, wave: 0, ph: 0, len: 34 }, tailFront: 0,
   };
   const STRETCH = {
-    H: [-18, -29], S: [20, -15],
+    H: [-16, -32], S: [19, -16],
     feet: { FL: [36, -2.4], FR: [32.5, -2.4], HL: [-19, -2.4], HR: [-23, -2.4] }, meta: { HL: 0.2, HR: 0.2 },
     neck: 0.25, neckLen: 12, headTilt: 0.25, ears: 0.3,
     tail: { a: 1.9, curl: -0.7, wave: 0, ph: 0, len: 34 }, tailFront: 0,
   };
   const BAT = {
-    H: [-14, -15], S: [12, -22],
+    H: [-13, -16], S: [12, -24],
     feet: { FL: [18, -2.4], FR: [16, -2.4], HL: [-8, -2.4], HR: [-11, -2.4] }, meta: { HL: 1.15, HR: 1.15 },
     neck: 0.5, neckLen: 11, headTilt: 0.05, ears: 0.35,
     tail: { a: 3.3, curl: 0.4, wave: 0, ph: 0, len: 34 }, tailFront: 0,
@@ -260,8 +260,8 @@ const Art = (() => {
   }
   const WALKB = edit(STAND, q => { q.tail = { a: 2.35, curl: -1.0, wave: 0, ph: 0, len: 34 }; });
   const STALKB = edit(STAND, q => {
-    q.H = [-19, -20]; q.S = [15, -19]; q.neck = 0.3; q.neckLen = 12; q.headTilt = 0.1; q.ears = 0.2;
-    q.feet.FL[0] = 21; q.feet.FR[0] = 17.5; q.feet.HL[0] = -18; q.feet.HR[0] = -21.5; q.meta = { HL: 0.7, HR: 0.7 };
+    q.H = [-17, -22]; q.S = [14, -21]; q.neck = 0.3; q.neckLen = 12; q.headTilt = 0.1; q.ears = 0.2;
+    q.feet.FL[0] = 20; q.feet.FR[0] = 16.5; q.feet.HL[0] = -16; q.feet.HR[0] = -19.5; q.meta = { HL: 0.7, HR: 0.7 };
     q.tail = { a: 3.25, curl: -0.2, wave: 0, ph: 0, len: 34 };
   });
   const RUNB = edit(STAND, q => { q.neck = 0.55; q.ears = 0.35; q.tail = { a: 3.0, curl: 0.35, wave: 0, ph: 0, len: 34 }; });
