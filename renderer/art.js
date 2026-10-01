@@ -95,27 +95,42 @@ const Art = (() => {
   }
 
   // ---------- скелет кошки: смотрит вправо, земля y=0 ----------
-  // H — центр крупа, S — центр груди; лапы — цели для стоп; хвост — цепочка с поворотом и прижатием к земле.
-  const RH = 9.5, RS = 9.5;
+  // Кошка пальцеходящая: передняя лапа — плечо, локоть (сзади), запястье с карпальной подушечкой, пальцы;
+  // задняя — бедро, колено (вперёд), высокая пятка (скакательный сустав) и длинная плюсна до пальцев.
+  // H — центр крупа, S — центр груди; позвоночник — дуга H→S (arch>0 — выгнут вверх, <0 — прогнут),
+  // лопатка (scap) свободная, выступает над линией спины при подкрадывании и в опоре на переднюю лапу.
+  // flip — лёжа на спине, лапы вверх. tuck — лапы подобраны под корпус (без отдельного контура).
+  const RH = 9.4, RS = 9.2;
+  const qb = (a, c, b, t) => V((1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * c.y + t * t * b.y);
+  const unit = a => { const l = len(a) || 1; return V(a.x / l, a.y / l); };
+  const gauss = (t, m, w) => Math.exp(-(((t - m) / w) ** 2));
   function buildCat(P) {
-    const H = P2(P.H), S = P2(P.S);
+    const H = P2(P.H), S = P2(P.S), flip = (P.flip || 0) > 0.5, sg = flip ? -1 : 1;
     const ax = sub(S, H), L = len(ax), u = V(ax.x / L, ax.y / L), n = V(-u.y, u.x);
     const ang = Math.atan2(u.y, u.x);
-    const near = [], far = [], paws = { near: [], far: [] }, A = {};
+    const body = [], far = [], legsN = [], paws = { near: [], far: [] }, A = {};
+    const ground = p => V(p.x, Math.min(p.y, -2.2));
 
-    // корпус: капсула + живот + круп
-    near.push(capsule(H, RH, S, RS));
-    near.push(ell((H.x + S.x) / 2 + n.x * 1.8, (H.y + S.y) / 2 + n.y * 1.8, L / 2 + 4.5, (RH + RS) / 2, ang, 28));
-    near.push(ell(H.x - u.x * 1.5, H.y - u.y * 1.5, RH + 1.2, RH + 0.6, ang, 22));
+    // корпус по дуге позвоночника: сверху — спина с лопаткой, снизу — грудь и живот с «кармашком»
+    const C = add(lerpV(H, S, 0.5), n, -(P.arch || 0) * sg);
+    const chain = [], scap = P.scap ?? 0.4;
+    for (let i = 0; i <= 12; i++) {
+      const t = i / 12, p = qb(H, C, S, t);
+      const top = lerp(RH, RS, t) - 0.7 * Math.sin(Math.PI * t) + scap * 1.8 * gauss(t, 0.8, 0.1);
+      const bot = lerp(RH, RS + 0.6, t) + 1.4 * gauss(t, 0.36, 0.2) - 0.6 * gauss(t, 0.62, 0.12);
+      chain.push([p, flip ? bot : top, flip ? top : bot]);
+    }
+    body.push(limb(chain), ell(H.x, H.y, RH, RH, 0, 20), ell(S.x, S.y, RS, RS, 0, 20));
+    const uH = unit(sub(C, H)), nH = V(-uH.y * sg, uH.x * sg);
+    body.push(ell(H.x - uH.x * 1.5, H.y - uH.y * 1.5, RH + 1.1, RH + 0.5, Math.atan2(uH.y, uH.x), 22));
 
-    // голова: шея от груди, череп/щёки/мордочка в повороте головы (вид 3/4)
+    // голова: короткая толстая шея, череп/щёки/мордочка в повороте головы (вид 3/4)
     let Hc = add(S, dirA(P.neck), P.neckLen);
-    if (Hc.y > -9.5) Hc = V(Hc.x, -9.5);
+    if (Hc.y > -9.6) Hc = V(Hc.x, -9.6);
     const ht = P.headTilt || 0, hp = (x, y) => add(Hc, rot(V(x, y), ht));
     const hmap = pts => pts.map(p => hp(p.x, p.y));
-    near.push(capsule(add(S, u, 2), 8, Hc, 7));
+    body.push(capsule(add(S, u, 1.5), 8.2, Hc, 7.4));
     const head = [hmap(ell(0, 0, 11, 9.6, 0, 24)), hmap(ell(1, 3.6, 12.2, 7, 0, 24)), hmap(ell(5.6, 4.6, 5, 3.7, 0, 16))];
-    // уши: ближнее (сзади) и дальнее (спереди), e — прижатие
     const e = P.ears || 0;
     const ears = [[[-10.5, -2.5], [-2, -9.2], [-9.5, -17.5], [-5, 6.5]], [[0.5, -9.8], [9.5, -4.5], [6.8, -17.8], [4.5, 7]]].map(([b1, b2, tip, dt]) =>
       ({ b1: P2(b1), b2: P2(b2), t: V(tip[0] + dt[0] * e, tip[1] + dt[1] * e) }));
@@ -123,7 +138,7 @@ const Art = (() => {
       const out = add(lerpV(E.b1, E.t, 0.5), V(-(E.t.y - E.b1.y), E.t.x - E.b1.x), -0.06);
       head.push(hmap([E.b1, out, E.t, E.t, lerpV(E.t, E.b2, 0.5), E.b2, lerpV(E.b2, E.b1, 0.5)]));
     }
-    near.push(...head);
+    body.push(...head);
     A.innerEars = ears.map(E => {
       const c = V((E.b1.x + E.b2.x + E.t.x) / 3, (E.b1.y + E.b2.y + E.t.y) / 3 + 0.8);
       return hmap([E.b1, E.t, E.t, E.b2].map(p => lerpV(c, p, 0.58)));
@@ -131,34 +146,40 @@ const Art = (() => {
 
     // лапы
     const metaV = m => V(-Math.sin(m), -Math.cos(m));
-    const legs = {};
+    const legs = {}, tuck = (P.tuck || 0) > 0.5;
     for (const k of ['FL', 'FR', 'HL', 'HR']) {
       const farLeg = k[1] === 'R', dx = farLeg ? 1.8 : 0, dy = farLeg ? -0.8 : 0;
       const foot = P2(P.feet[k]);
       let poly, paw;
       if (k[0] === 'F') {
-        const SJ = add(S, V(1 + dx, 3 + dy)), r = ik(SJ, add(foot, V(-0.6, -2.4)), 12, 11.5, 1);
-        const pawC = add(r.end, V(0.9, 2.2));
-        poly = limb([[add(SJ, V(0, -3)), 5.2, 5.6], [SJ, 5, 5.4], [r.joint, 3.5, 3.9], [lerpV(r.joint, r.end, 0.5), 2.9, 3.1], [r.end, 2.7, 2.8]]);
-        paw = ell(pawC.x, pawC.y, 3.6, 2.4, 0, 14);
-        legs[k] = { paw: pawC };
+        const fb = flip ? -1 : 1, SJ = add(S, V(1 + dx, 3 * sg + dy));
+        const d = unit(sub(foot, SJ)), n2 = V(-d.y, d.x);
+        const wrist = add(add(foot, d, -3.4), n2, 1.3 * fb);
+        const r = ik(SJ, wrist, 11.5, 11, fb), el = flip ? r.joint : ground(r.joint);
+        poly = limb([[add(SJ, V(0, -3 * sg)), 5.4, 5.8], [SJ, 5.2, 5.6], [el, 3.6, 4.2], [lerpV(el, r.end, 0.55), 2.8, 3],
+          [r.end, 2.6, 3.3], [lerpV(r.end, foot, 0.6), 2.5, 2.6]]);
+        paw = ell(foot.x + d.x * 0.6, foot.y + d.y * 0.6, 3.6, 2.4, Math.atan2(d.y, d.x) - Math.PI / 2, 14);
+        legs[k] = { paw: foot, elbow: el, wrist: r.end };
       } else {
-        const HJ = add(H, V(-1 + dx, 2 + dy)), mv = metaV(P.meta[k] ?? 0.3);
-        const r = ik(HJ, add(foot, mv, 8), 12.5, 11, -1);
-        const hock = r.end, pawB = add(hock, mv, -8);
-        poly = limb([[add(HJ, sub(HJ, r.joint), 0.25), 7.5, 8.5], [HJ, 7.5, 9], [lerpV(HJ, r.joint, 0.55), 6, 6.8], [r.joint, 4, 4.6],
-          [lerpV(r.joint, hock, 0.5), 3, 3.3], [hock, 2.3, 2.9], [lerpV(hock, pawB, 0.6), 2.3, 2.4], [pawB, 2.4, 2.4]]);
-        const pawC = add(pawB, V(1.1, 0));
-        paw = ell(pawC.x, pawC.y, 4, 2.4, 0, 14);
-        legs[k] = { paw: pawC, knee: r.joint, hock };
+        const hb = flip ? 1 : -1, HJ = add(H, V(-1 + dx, 2 * sg + dy)), mv = metaV(P.meta[k] ?? 0.3);
+        const r = ik(HJ, add(foot, mv, 9), 12.5, 11, hb), kn = flip ? r.joint : ground(r.joint);
+        const hock = r.end, pawB = add(hock, mv, -9);
+        poly = limb([[add(HJ, sub(HJ, kn), 0.25), 7.5, 8.5], [HJ, 7.5, 9], [lerpV(HJ, kn, 0.55), 6, 6.8], [kn, 4, 4.4],
+          [lerpV(kn, hock, 0.5), 3, 3.4], [hock, 2.4, 3.5], [lerpV(hock, pawB, 0.6), 2.3, 2.4], [pawB, 2.4, 2.4]]);
+        const dd = unit(sub(pawB, hock)), fwd = V(-dd.y, dd.x);
+        const pawC = add(pawB, fwd, -1.1 * hb);
+        paw = ell(pawC.x, pawC.y, 4, 2.4, Math.atan2(dd.y, dd.x) - Math.PI / 2, 14);
+        legs[k] = { paw: pawC, knee: kn, hock };
       }
-      (farLeg ? far : near).push(poly, paw);
+      if (farLeg) far.push(poly, paw);
+      else if (tuck) body.push(poly, paw);
+      else legsN.push(poly, paw);
       (farLeg ? paws.far : paws.near).push(paw);
     }
 
-    // хвост
+    // хвост: от корня над седалищем, повороты по длине, не уходит под землю
     const tail = [];
-    let tp = add(add(H, u, -RH * 0.95), n, -2.5), th = P.tail.a;
+    let tp = add(add(H, uH, -RH * 0.95), nH, -2.5), th = P.tail.a;
     const TN = 13, TL = P.tail.len || 34;
     tail.push(tp);
     for (let i = 1; i <= TN; i++) {
@@ -168,65 +189,91 @@ const Art = (() => {
       if (tp.y > -2.1) tp = V(tp.x, -2.1);
       tail.push(tp);
     }
-    const tailPoly = limb(tail.map((p, i) => { const w = lerp(3.7, 2.5, i / TN); return [p, w, w]; }));
+    const tailPoly = limb(tail.map((p, i) => { const w = lerp(3.9, 2.6, i / TN); return [p, w, w]; }));
     const tip = tail[TN];
-    const tailParts = [tailPoly, ell(tip.x, tip.y, 2.6, 2.6, 0, 12)];
+    const tailParts = [tailPoly, ell(tip.x, tip.y, 2.7, 2.7, 0, 12)];
 
-    // точки для глаз, сердечек, игр
     A.head = Hc;
     A.eyeN = hp(-1.4, -0.6); A.eyeF = hp(6.4, -1.0); A.eyeAng = -ht;
     A.mouth = hp(6.3, 5.2);
     A.paw = legs.FL.paw;
-    A.top = Math.min(...head.flat().map(p => p.y));
+    A.top = Math.min(...head.flat().map(p => p.y), ...chain.map(c => c[0].y - c[1]));
     A.body = lerpV(H, S, 0.5);
-    return { H, S, u, n, ang, hp, near, far, paws, tail, tailParts, legs, anchors: A };
+    return { H, S, C, u, n: V(n.x * sg, n.y * sg), ang, hp, body, far, legsN, paws, tail, tailParts, legs, anchors: A, flip };
   }
 
   // ---------- позы ----------
+  // стоя круп чуть выше холки, голова ниже линии спины не опускается; хвост расслаблен — вниз и кончиком вверх
   const STAND = {
-    H: [-17, -29.5], S: [15, -31],
-    feet: { FL: [18, -2.4], FR: [14.5, -2.4], HL: [-16, -2.4], HR: [-20, -2.4] }, meta: { HL: 0.3, HR: 0.3 },
-    neck: 0.8, neckLen: 13, headTilt: 0, ears: 0,
-    tail: { a: 3.6, curl: -1.5, wave: 0, ph: 0, len: 34 }, tailFront: 0,
+    H: [-17, -31], S: [15, -29.5], arch: 1, scap: 0.4, tuck: 0, flip: 0,
+    feet: { FL: [17, -2.4], FR: [13.5, -2.4], HL: [-17, -2.4], HR: [-21, -2.4] }, meta: { HL: 0.32, HR: 0.32 },
+    neck: 0.75, neckLen: 12.5, headTilt: 0, ears: 0, tongue: 0,
+    tail: { a: 3.5, curl: -1.3, wave: 0, ph: 0, len: 34 }, tailFront: 0,
   };
+  // сидя: плюсны лежат на земле, передние прямые и вертикальные, хвост обвивает лапки
   const SIT = {
-    H: [-10, -10], S: [5, -31],
-    feet: { FL: [10, -2.4], FR: [6.5, -2.4], HL: [0, -2.4], HR: [-3, -2.4] }, meta: { HL: 1.45, HR: 1.45 },
-    neck: 1.25, neckLen: 11.5, headTilt: 0.05, ears: 0,
+    H: [-10, -10.5], S: [5, -30], arch: 1.5, scap: 0.2, tuck: 0, flip: 0,
+    feet: { FL: [10, -2.4], FR: [6.5, -2.4], HL: [1, -2.4], HR: [-2, -2.4] }, meta: { HL: 1.45, HR: 1.45 },
+    neck: 1.25, neckLen: 11.5, headTilt: 0.05, ears: 0, tongue: 0,
     tail: { a: 4.5, curl: 2.1, wave: 0, ph: 0, len: 34 }, tailFront: 1,
   };
+  // «буханка»: лапы подобраны под грудь
   const LOAF = {
-    H: [-16, -10.5], S: [12, -11],
+    H: [-16, -10.5], S: [12, -11], arch: 2, scap: 0.2, tuck: 1, flip: 0,
     feet: { FL: [16, -2.4], FR: [13, -2.4], HL: [-6, -2.4], HR: [-9, -2.4] }, meta: { HL: 1.45, HR: 1.45 },
-    neck: 1.0, neckLen: 11, headTilt: 0, ears: 0.1,
+    neck: 1.0, neckLen: 11, headTilt: 0, ears: 0.1, tongue: 0,
     tail: { a: 3.8, curl: 2.4, wave: 0, ph: 0, len: 34 }, tailFront: 1,
   };
+  // спит клубком: спина круглым куполом, голова уткнута вниз к лапам, хвост укрывает нос
   const CURL = {
-    H: [-14, -9.5], S: [9, -10],
-    feet: { FL: [15, -2.4], FR: [12, -2.4], HL: [-5, -2.4], HR: [-8, -2.4] }, meta: { HL: 1.45, HR: 1.45 },
-    neck: -0.15, neckLen: 12, headTilt: -0.3, ears: 0.3,
-    tail: { a: 3.9, curl: 3.5, wave: 0, ph: 0, len: 36 }, tailFront: 1,
+    H: [-11, -10.5], S: [8, -10.5], arch: 6.5, scap: 0, tuck: 1, flip: 0,
+    feet: { FL: [12, -2.4], FR: [9, -2.4], HL: [-4, -2.4], HR: [-7, -2.4] }, meta: { HL: 1.45, HR: 1.45 },
+    neck: -0.55, neckLen: 11, headTilt: -0.55, ears: 0.35, tongue: 0,
+    tail: { a: 4.2, curl: 3.6, wave: 0, ph: 0, len: 37 }, tailFront: 1,
+  };
+  // валяется на боку, вытянувшись: лапы вперёд и назад
+  const SPRAWL = {
+    H: [-20, -9.6], S: [12, -9.6], arch: -1, scap: 0, tuck: 0, flip: 0,
+    feet: { FL: [34, -5], FR: [31, -3], HL: [-38, -6], HR: [-35, -3.2] }, meta: { HL: -1.5, HR: -1.5 },
+    neck: 0.12, neckLen: 12, headTilt: 0.1, ears: 0.2, tongue: 0,
+    tail: { a: 3.18, curl: 0.15, wave: 0, ph: 0, len: 34 }, tailFront: 0,
+  };
+  // на спине пузом вверх, лапки кверху согнуты
+  const ROLL = {
+    H: [-18, -10], S: [12, -10], arch: -1.5, scap: 0, tuck: 0, flip: 1,
+    feet: { FL: [20, -26], FR: [16, -24], HL: [-12, -27], HR: [-16, -25] }, meta: { HL: Math.PI, HR: Math.PI },
+    neck: 0.35, neckLen: 12, headTilt: 0.75, ears: 0.15, tongue: 0,
+    tail: { a: 3.2, curl: 0.4, wave: 0, ph: 0, len: 34 }, tailFront: 0,
   };
   const CROUCH = {
-    H: [-16, -17], S: [13, -16],
-    feet: { FL: [22, -2.4], FR: [18.5, -2.4], HL: [-15, -2.4], HR: [-18.5, -2.4] }, meta: { HL: 1.0, HR: 1.0 },
-    neck: 0.25, neckLen: 11, headTilt: 0.1, ears: 0.25,
+    H: [-16, -17], S: [13, -16], arch: -0.5, scap: 1.4, tuck: 0, flip: 0,
+    feet: { FL: [21, -2.4], FR: [17.5, -2.4], HL: [-14, -2.4], HR: [-17.5, -2.4] }, meta: { HL: 1.0, HR: 1.0 },
+    neck: 0.25, neckLen: 11, headTilt: 0.1, ears: 0.25, tongue: 0,
     tail: { a: 3.15, curl: 0.2, wave: 0, ph: 0, len: 34 }, tailFront: 0,
   };
-  const STRETCH = {
-    H: [-16, -32], S: [19, -16],
-    feet: { FL: [36, -2.4], FR: [32.5, -2.4], HL: [-19, -2.4], HR: [-23, -2.4] }, meta: { HL: 0.2, HR: 0.2 },
-    neck: 0.25, neckLen: 12, headTilt: 0.25, ears: 0.3,
+  // потягушки: «поклон» (передние вперёд, грудь к земле, круп вверх, спина прогнута) …
+  const BOW = {
+    H: [-15, -33], S: [19, -15], arch: -3, scap: 1.2, tuck: 0, flip: 0,
+    feet: { FL: [37, -2.4], FR: [33.5, -2.4], HL: [-16, -2.4], HR: [-20, -2.4] }, meta: { HL: 0.2, HR: 0.2 },
+    neck: 0.25, neckLen: 12, headTilt: 0.3, ears: 0.3, tongue: 0,
     tail: { a: 1.9, curl: -0.7, wave: 0, ph: 0, len: 34 }, tailFront: 0,
   };
+  // … затем вперёд на передние и вытянуть заднюю лапу назад
+  const HINDSTRETCH = {
+    H: [-11, -27], S: [20, -27], arch: 1.5, scap: 0.6, tuck: 0, flip: 0,
+    feet: { FL: [23, -2.4], FR: [20, -2.4], HL: [-38, -8], HR: [-12, -2.4] }, meta: { HL: -1.25, HR: 0.4 },
+    neck: 0.85, neckLen: 12.5, headTilt: 0.15, ears: 0.1, tongue: 0,
+    tail: { a: 3.0, curl: -0.4, wave: 0, ph: 0, len: 34 }, tailFront: 0,
+  };
   const BAT = {
-    H: [-13, -16], S: [12, -24],
+    H: [-13, -16], S: [12, -24], arch: 0.5, scap: 0.8, tuck: 0, flip: 0,
     feet: { FL: [18, -2.4], FR: [16, -2.4], HL: [-8, -2.4], HR: [-11, -2.4] }, meta: { HL: 1.15, HR: 1.15 },
-    neck: 0.5, neckLen: 11, headTilt: 0.05, ears: 0.35,
+    neck: 0.5, neckLen: 11, headTilt: 0.05, ears: 0.35, tongue: 0,
     tail: { a: 3.3, curl: 0.4, wave: 0, ph: 0, len: 34 }, tailFront: 0,
   };
 
   const smooth = t => t * t * (3 - 2 * t);
+  const seg = (k, a, b) => smooth(Math.max(0, Math.min(1, (k - a) / (b - a))));
   // смешивание поз (числа, массивы и вложенные объекты)
   function mix(a, b, t) {
     if (typeof a === 'number') return lerp(a, b ?? a, t);
@@ -238,13 +285,16 @@ const Art = (() => {
   const clone = p => JSON.parse(JSON.stringify(p));
   function edit(p, f) { const q = clone(p); f(q); return q; }
 
-  // походка: стопы в опоре едут назад, в переносе — вперёд с подъёмом
+  // походка: латеральная последовательность ЛЗ→ЛП→ПЗ→ПП, опора >50% цикла; лапа в переносе поднимается,
+  // задняя сгибает пятку; лопатка выступает над спиной, когда передняя лапа держит вес
   function gait(base, ph, offs, stance, A, lift, metaLift = 0.6) {
     const q = clone(base);
     for (const k in offs) {
       const p = ((ph + offs[k]) % 1 + 1) % 1, f = q.feet[k];
-      if (p < stance) { const s = p / stance; f[0] += A * (1 - 2 * s); }
-      else {
+      if (p < stance) {
+        const s = p / stance; f[0] += A * (1 - 2 * s);
+        if (k === 'FL') q.scap += 0.7 * Math.sin(Math.PI * s);
+      } else {
         const s = (p - stance) / (1 - stance);
         f[0] += A * (-1 + 2 * smooth(s)); f[1] -= lift * Math.sin(Math.PI * s);
         if (k[0] === 'H') q.meta[k] += metaLift * Math.sin(Math.PI * s);
@@ -253,39 +303,54 @@ const Art = (() => {
     return q;
   }
   function walkPose(i, n, base, A, lift, bob) {
-    const ph = i / n, q = gait(base, ph, { HL: 0, FL: 0.25, HR: 0.5, FR: 0.75 }, 0.6, A, lift);
+    const ph = i / n, q = gait(base, ph, { HL: 0, FL: 0.25, HR: 0.5, FR: 0.75 }, 0.62, A, lift, 0.7);
     q.H[1] += bob * Math.sin(ph * TAU * 2); q.S[1] += bob * Math.sin(ph * TAU * 2 + 0.6);
-    q.tail.wave = 0.6 * Math.sin(ph * TAU);
+    q.tail.wave = 0.5 * Math.sin(ph * TAU);
     return q;
   }
-  const WALKB = edit(STAND, q => { q.tail = { a: 2.35, curl: -1.0, wave: 0, ph: 0, len: 34 }; });
+  const WALKB = edit(STAND, q => { q.neck = 0.6; q.tail = { a: 3.3, curl: -0.9, wave: 0, ph: 0, len: 34 }; });
+  const WALKUPB = edit(STAND, q => { q.neck = 0.75; q.tail = { a: 1.95, curl: -0.9, wave: 0, ph: 0, len: 34 }; });
+  // крадётся: низко, лопатки выше спины, голова на уровне спины и вытянута вперёд
   const STALKB = edit(STAND, q => {
-    q.H = [-17, -22]; q.S = [14, -21]; q.neck = 0.3; q.neckLen = 12; q.headTilt = 0.1; q.ears = 0.2;
-    q.feet.FL[0] = 20; q.feet.FR[0] = 16.5; q.feet.HL[0] = -16; q.feet.HR[0] = -19.5; q.meta = { HL: 0.7, HR: 0.7 };
+    q.H = [-17, -23]; q.S = [14, -20]; q.arch = -0.5; q.scap = 1.5; q.neck = 0.25; q.neckLen = 12; q.headTilt = 0.1; q.ears = 0.2;
+    q.feet.FL[0] = 20; q.feet.FR[0] = 16.5; q.feet.HL[0] = -16; q.feet.HR[0] = -19.5; q.meta = { HL: 0.75, HR: 0.75 };
     q.tail = { a: 3.25, curl: -0.2, wave: 0, ph: 0, len: 34 };
   });
-  const RUNB = edit(STAND, q => { q.neck = 0.55; q.ears = 0.35; q.tail = { a: 3.0, curl: 0.35, wave: 0, ph: 0, len: 34 }; });
+  const RUNB = edit(STAND, q => { q.neck = 0.5; q.ears = 0.35; q.tail = { a: 3.0, curl: 0.35, wave: 0, ph: 0, len: 34 }; });
+  // ротационный галоп: позвоночник сгибается (лапы собраны под телом) и разгибается (лапы врозь)
   function runPose(i, n) {
-    const ph = i / n, q = gait(RUNB, ph, { HL: 0, HR: 0.07, FL: 0.5, FR: 0.57 }, 0.4, 11, 6, 0.9);
+    const ph = i / n, q = gait(RUNB, ph, { HL: 0, HR: 0.08, FL: 0.5, FR: 0.6 }, 0.38, 11, 6, 0.9);
     const ext = Math.sin(ph * TAU);
-    q.H[0] -= 4 * ext; q.S[0] += 4 * ext; q.H[1] += 1.2 * Math.cos(ph * TAU); q.S[1] -= 1.2 * Math.cos(ph * TAU);
+    q.H[0] -= 4.5 * ext; q.S[0] += 4.5 * ext; q.arch = 1.5 - 4.5 * ext;
+    q.H[1] += 1.2 * Math.cos(ph * TAU); q.S[1] -= 1.2 * Math.cos(ph * TAU);
     q.tail.wave = 0.4 * Math.sin(ph * TAU);
     return q;
   }
   const POUNCE = [
     edit(CROUCH, q => { q.H = [-16, -15]; q.ears = 0.45; }),
-    edit(CROUCH, q => { q.H = [-20, -22]; q.S = [17, -30]; q.feet = { FL: [30, -24], FR: [28, -21], HL: [-30, -3], HR: [-33, -3] }; q.meta = { HL: 0.1, HR: 0.1 }; q.neck = 0.55; q.ears = 0.45; }),
-    edit(CROUCH, q => { q.H = [-22, -27]; q.S = [20, -29]; q.feet = { FL: [40, -24], FR: [37, -21], HL: [-42, -16], HR: [-44, -13] }; q.meta = { HL: -0.6, HR: -0.6 }; q.neck = 0.45; q.ears = 0.5; q.tail = { a: 3.0, curl: 0.2, wave: 0, ph: 0, len: 34 }; }),
-    edit(CROUCH, q => { q.H = [-20, -26]; q.S = [19, -24]; q.feet = { FL: [36, -8], FR: [33, -6], HL: [-38, -18], HR: [-40, -15] }; q.meta = { HL: -0.3, HR: -0.3 }; q.neck = 0.35; q.ears = 0.45; q.tail = { a: 3.0, curl: 0.5, wave: 0, ph: 0, len: 34 }; }),
-    edit(CROUCH, q => { q.H = [-16, -21]; q.S = [16, -16]; q.feet = { FL: [30, -2.4], FR: [27, -2.4], HL: [-14, -8], HR: [-17, -6] }; q.meta = { HL: 0.9, HR: 0.9 }; q.ears = 0.35; }),
+    edit(CROUCH, q => { q.H = [-20, -22]; q.S = [17, -30]; q.arch = -1; q.feet = { FL: [30, -24], FR: [28, -21], HL: [-30, -3], HR: [-33, -3] }; q.meta = { HL: 0.1, HR: 0.1 }; q.neck = 0.55; q.ears = 0.45; }),
+    edit(CROUCH, q => { q.H = [-23, -27]; q.S = [20, -29]; q.arch = -2; q.feet = { FL: [40, -24], FR: [37, -21], HL: [-42, -16], HR: [-44, -13] }; q.meta = { HL: -0.6, HR: -0.6 }; q.neck = 0.45; q.ears = 0.5; q.tail = { a: 3.0, curl: 0.2, wave: 0, ph: 0, len: 34 }; }),
+    edit(CROUCH, q => { q.H = [-20, -26]; q.S = [19, -24]; q.arch = 1; q.feet = { FL: [36, -8], FR: [33, -6], HL: [-38, -18], HR: [-40, -15] }; q.meta = { HL: -0.3, HR: -0.3 }; q.neck = 0.35; q.ears = 0.45; q.tail = { a: 3.0, curl: 0.5, wave: 0, ph: 0, len: 34 }; }),
+    edit(CROUCH, q => { q.H = [-16, -22]; q.S = [16, -16]; q.arch = 2; q.feet = { FL: [30, -2.4], FR: [27, -2.4], HL: [-14, -8], HR: [-17, -6] }; q.meta = { HL: 0.9, HR: 0.9 }; q.ears = 0.35; }),
     edit(CROUCH, q => { q.feet.FL = [27, -2.4]; q.feet.FR = [24, -2.4]; q.ears = 0.3; }),
   ];
   const BAT_PAW = [[18, -2.4], [22, -14], [27, -17], [33, -8], [31, -2.4], [24, -5]];
+  // умывание передней лапой: лизнуть подушечку (голова к лапе) и провести лапой по уху и щеке
+  const GROOM_PAW = [[17, -24], [17, -22.5], [17, -24], [17, -22.5], [17, -24], [20, -32], [15, -39], [10, -41], [13, -33], [17, -25]];
+  // «виолончель»: сидя на бедре, дальняя задняя лапа задрана вверх, голова к животу и внутренней стороне бедра
+  const GROOM_LEG = edit(SIT, q => {
+    q.H = [-8, -9.5]; q.S = [3, -26]; q.arch = 3.5;
+    q.feet.HR = [9, -48]; q.meta.HR = Math.PI; q.feet.HL = [2, -2.4];
+    q.feet.FL = [11, -2.4]; q.feet.FR = [6, -2.4];
+    q.neck = -0.35; q.neckLen = 9.5; q.headTilt = -0.75; q.ears = 0.15; q.tongue = 1;
+    q.tail = { a: 3.6, curl: 0.4, wave: 0, ph: 0, len: 34 }; q.tailFront = 0;
+  });
 
   const ANIMS = {
     stand: { n: 8, fps: 3, pose: i => edit(STAND, q => { q.tail.wave = 0.5 * Math.sin(i / 8 * TAU); q.tail.ph = i / 8 * TAU; }) },
-    walk: { n: 8, fps: 10, pose: i => walkPose(i, 8, WALKB, 7, 3.5, 0.5) },
-    stalk: { n: 8, fps: 6, pose: i => walkPose(i, 8, STALKB, 5, 2.4, 0.3) },
+    walk: { n: 8, fps: 10, pose: i => walkPose(i, 8, WALKB, 7.5, 3.5, 0.4) },
+    walkUp: { n: 8, fps: 10, pose: i => walkPose(i, 8, WALKUPB, 7.5, 3.5, 0.4) },
+    stalk: { n: 8, fps: 6, pose: i => walkPose(i, 8, STALKB, 5, 2.4, 0.25) },
     run: { n: 6, fps: 14, pose: i => runPose(i, 6) },
     crouch: { n: 4, fps: 8, pose: i => edit(CROUCH, q => { q.H[0] += 1.3 * Math.sin(i / 4 * TAU); q.H[1] += 0.5 * Math.cos(i / 4 * TAU); q.tail.wave = 0.9 * Math.sin(i / 4 * TAU); q.tail.ph = 2; }) },
     pounce: { n: 6, fps: 11, once: true, pose: i => POUNCE[i] },
@@ -295,26 +360,47 @@ const Art = (() => {
     wait: { n: 6, fps: 3, pose: i => edit(SIT, q => { q.headTilt = 0.15; q.tail.curl += 0.4 * Math.sin(i / 6 * TAU); q.ears = -0.1; }) },
     petted: { n: 4, fps: 2, pose: i => edit(SIT, q => { q.headTilt = 0.3 + 0.05 * Math.sin(i / 4 * TAU); q.neck = 1.15; q.ears = 0.2; q.tail.curl += 0.3 * Math.sin(i / 4 * TAU); }) },
     groom: {
-      n: 6, fps: 4, pose: i => edit(SIT, q => {
-        const w = Math.sin(i / 6 * TAU);
-        q.neck = 0.5; q.neckLen = 10; q.headTilt = -0.3 + 0.12 * w; q.feet.FL = [17, -22 + 1.2 * w]; q.ears = 0.1;
+      n: 10, fps: 4, pose: i => edit(SIT, q => {
+        const wipe = i >= 5;
+        q.feet.FL = GROOM_PAW[i].slice();
+        q.neck = wipe ? 0.65 : 0.5; q.neckLen = 10; q.headTilt = wipe ? -0.55 + 0.1 * Math.sin(i) : -0.3 + 0.1 * (i % 2);
+        q.ears = wipe ? 0.35 : 0.1; q.tongue = !wipe && i % 2 === 0 ? 1 : 0;
       }),
     },
+    groomLeg: { n: 8, fps: 4, pose: i => edit(GROOM_LEG, q => { q.headTilt += 0.1 * Math.sin(i / 8 * TAU * 2); q.neckLen += 0.6 * Math.sin(i / 8 * TAU * 2); q.tongue = i % 2 ? 0 : 1; q.feet.HR[1] += 1.2 * Math.sin(i / 8 * TAU); }) },
+    legUp: { n: 5, fps: 7, once: true, pose: i => mix(SIT, GROOM_LEG, smooth(i / 4)) },
     stretch: {
-      n: 8, fps: 4, once: true, pose: i => {
-        const t = i / 7, k = t < 0.3 ? smooth(t / 0.3) : t < 0.7 ? 1 : 1 - smooth((t - 0.7) / 0.3);
-        return mix(STAND, STRETCH, k);
+      n: 14, fps: 4, once: true, pose: i => {
+        const t = i / 13;
+        if (t < 0.45) return mix(STAND, BOW, seg(t, 0, 0.25));
+        if (t < 0.8) return mix(BOW, HINDSTRETCH, seg(t, 0.45, 0.62));
+        return mix(HINDSTRETCH, STAND, seg(t, 0.8, 1));
       },
     },
     loaf: { n: 4, fps: 1.2, pose: i => edit(LOAF, q => { q.H[1] -= 0.4 * Math.sin(i / 4 * TAU); q.S[1] -= 0.3 * Math.sin(i / 4 * TAU); }) },
-    lieDown: { n: 5, fps: 7, once: true, pose: i => mix(STAND, LOAF, smooth(i / 4)) },
-    curl: { n: 4, fps: 1, pose: i => edit(CURL, q => { q.H[1] -= 0.5 * Math.sin(i / 4 * TAU); q.S[1] -= 0.35 * Math.sin(i / 4 * TAU); }) },
-    curlIn: { n: 4, fps: 5, once: true, pose: i => mix(LOAF, CURL, smooth(i / 3)) },
+    // ложится как кошка: сначала садится, потом съезжает передними вперёд
+    lieDown: { n: 6, fps: 7, once: true, pose: i => { const t = i / 5; return t <= 0.5 ? mix(STAND, SIT, smooth(t * 2)) : mix(SIT, LOAF, smooth(t * 2 - 1)); } },
+    curl: { n: 4, fps: 1, pose: i => edit(CURL, q => { q.arch += 0.4 * Math.sin(i / 4 * TAU); q.H[1] -= 0.3 * Math.sin(i / 4 * TAU); }) },
+    curlIn: { n: 5, fps: 5, once: true, pose: i => mix(LOAF, CURL, smooth(i / 4)) },
+    sprawl: { n: 4, fps: 1, pose: i => edit(SPRAWL, q => { q.arch -= 0.3 * Math.sin(i / 4 * TAU); q.tail.wave = 0.3 * Math.sin(i / 4 * TAU); }) },
+    flop: { n: 5, fps: 7, once: true, pose: i => mix(LOAF, SPRAWL, smooth(i / 4)) },
+    roll: {
+      n: 6, fps: 3, pose: i => edit(ROLL, q => {
+        const w = Math.sin(i / 6 * TAU);
+        for (const k of ['FL', 'FR']) q.feet[k][0] += 2 * w;
+        for (const k of ['HL', 'HR']) q.feet[k][1] += 1.5 * Math.cos(i / 6 * TAU);
+        q.headTilt += 0.12 * w; q.tail.curl = 0.4 + 0.9 * w;
+      }),
+    },
+    rollOver: { n: 5, fps: 8, once: true, pose: i => mix(SPRAWL, ROLL, smooth(i / 4)) },
     boop: { n: 4, fps: 3, pose: i => edit(STAND, q => { q.neck = 0.45; q.neckLen = 15 + 0.8 * Math.sin(i / 4 * TAU); q.headTilt = 0.1; q.tail = { a: 1.9, curl: -0.9, wave: 0.4 * Math.sin(i / 4 * TAU), ph: 0, len: 34 }; }) },
+    // взаимное вылизывание: один, сидя повыше, лижет другому голову и ухо; тот склоняет голову
+    lickOther: { n: 6, fps: 4, pose: i => edit(SIT, q => { q.neck = 0.65; q.neckLen = 14 + Math.sin(i / 6 * TAU * 2); q.headTilt = -0.5 + 0.15 * Math.sin(i / 6 * TAU * 2); q.tongue = i % 2 ? 0 : 1; q.ears = 0; }) },
+    groomed: { n: 4, fps: 2, pose: i => edit(SIT, q => { q.neck = 1.0; q.headTilt = -0.35 + 0.04 * Math.sin(i / 4 * TAU); q.ears = 0.3; q.tail.curl += 0.3 * Math.sin(i / 4 * TAU); }) },
   };
 
   // ---------- рендер ----------
-  const SPR = { W: 150, H: 116, OX: 72, OY: 104 };
+  const SPR = { W: 160, H: 122, OX: 78, OY: 108 };
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = Math.max(1, Math.ceil(w)); c.height = Math.max(1, Math.ceil(h)); return c; };
   let grainCanvas = null;
   function grain() {
@@ -379,7 +465,14 @@ const Art = (() => {
       for (const p of list) { c.beginPath(); trace(c, p.map(q => V(q.x, q.y - 0.6))); c.fill(); }
       c.filter = 'none';
     };
+    const shadeGrad = (c, top, bot, a1, a2) => {
+      const gr = c.createLinearGradient(0, top, 0, bot);
+      gr.addColorStop(0, hexA(look.light, a1)); gr.addColorStop(0.45, hexA(look.light, 0.1));
+      gr.addColorStop(0.8, hexA(look.shade, 0.15)); gr.addColorStop(1, hexA(look.shade, a2));
+      c.fillStyle = gr; c.fillRect(-SPR.OX, -SPR.OY, SPR.W, SPR.H);
+    };
     const layer = (parts, color, deco, edgeA, inkA) => {
+      if (!parts.length) return;
       const cv = mk(W, H), c = cv.getContext('2d');
       setT(c);
       c.fillStyle = color; fillEach(c, parts);
@@ -390,6 +483,16 @@ const Art = (() => {
       o.setTransform(1, 0, 0, 1, 0, 0);
       o.drawImage(cv, 0, 0);
       inkContour(o, parts, look.ink, s, inkA, W, H, setT);
+    };
+    // полоски поперёк конечности
+    const legStripes = (c, k) => {
+      const L = g.legs[k];
+      if (k[0] === 'H') {
+        for (let j = 0; j < 3; j++) { const p = lerpV(L.knee, g.H, 0.15 + j * 0.25); stripe(c, add(p, V(-4, -2)), add(p, V(4, 2)), 1.7, look.stripe, 0.45); }
+        for (const t of [0.35, 0.7]) { const p = lerpV(L.knee, L.hock, t), d = unit(sub(L.hock, L.knee)), nn = V(-d.y * 3.5, d.x * 3.5); stripe(c, add(p, nn), add(p, nn, -1), 1.5, look.stripe, 0.45); }
+      } else {
+        for (const t of [0.3, 0.6]) { const p = lerpV(L.elbow, L.wrist, t), d = unit(sub(L.wrist, L.elbow)), nn = V(-d.y * 3.6, d.x * 3.6); stripe(c, add(p, nn), add(p, nn, -1), 1.5, look.stripe, 0.45); }
+      }
     };
     const tailLayer = () => layer(g.tailParts, look.base, c => {
       const gr = c.createLinearGradient(0, -40, 0, 0);
@@ -408,24 +511,13 @@ const Art = (() => {
     if (!P.tailFront) tailLayer();
     // дальние лапы
     layer(g.far, look.far, c => {
-      if (look.tabby) {
-        c.filter = `blur(${0.5 * s}px)`;
-        for (const k of ['FR', 'HR']) {
-          const p = g.legs[k].paw;
-          for (let j = 1; j <= 2; j++) stripe(c, V(p.x - 4, p.y - 4 - j * 4.5), V(p.x + 4, p.y - 5 - j * 4.5), 1.5, look.stripe, 0.5);
-        }
-        c.filter = 'none';
-      }
+      if (look.tabby) { c.filter = `blur(${0.5 * s}px)`; legStripes(c, 'FR'); legStripes(c, 'HR'); c.filter = 'none'; }
       whitePaws(c, g.paws.far);
     }, 0.5, 0.35);
 
-    // основной силуэт
-    layer(g.near, look.base, c => {
-      const gr = c.createLinearGradient(0, A.top, 0, 0);
-      gr.addColorStop(0, hexA(look.light, 0.55)); gr.addColorStop(0.45, hexA(look.light, 0.1));
-      gr.addColorStop(0.8, hexA(look.shade, 0.15)); gr.addColorStop(1, hexA(look.shade, 0.45));
-      c.fillStyle = gr; c.fillRect(-SPR.OX, -SPR.OY, SPR.W, SPR.H);
-      // акварельные разводы
+    // корпус и голова
+    layer(g.body, look.base, c => {
+      shadeGrad(c, A.top, 0, 0.55, 0.45);
       c.filter = `blur(${3 * s}px)`;
       for (let k = 0; k < 8; k++) {
         const x = A.body.x + (r() - 0.5) * 50, y = A.body.y + (r() - 0.5) * 20;
@@ -433,46 +525,55 @@ const Art = (() => {
         c.beginPath(); c.arc(x, y, 4 + r() * 7, 0, TAU); c.fill();
       }
       c.filter = 'none';
-      const { H: Hh, S: Ss, u, n } = g;
+      const { H: Hh, S: Ss, C: Cc, n } = g;
       if (look.tabby) {
-        // полоски поперёк спины, на бедре, лапах, «М» на лбу и щеках
+        // полоски поперёк спины по дуге позвоночника, «М» на лбу, щёки
         c.filter = `blur(${0.55 * s}px)`;
         for (let i = 0; i < 7; i++) {
-          const t = 0.02 + i * 0.15, p = add(lerpV(Hh, Ss, t), n, -RH - 1.5), q = add(add(p, n, 9 + (i % 2) * 2.5), u, -2.5);
-          stripe(c, p, q, 2.3, look.stripe, 0.55);
+          const t = 0.04 + i * 0.145, p0 = qb(Hh, Cc, Ss, t), d = unit(sub(qb(Hh, Cc, Ss, t + 0.02), p0));
+          const back = V(d.y * (g.flip ? -1 : 1), -d.x * (g.flip ? -1 : 1)), top = add(p0, back, 10.5);
+          stripe(c, top, add(add(top, back, -(9 + (i % 2) * 2.5)), d, -2.5), 2.3, look.stripe, 0.55);
         }
-        const kn = g.legs.HL.knee, hk = g.legs.HL.hock;
-        for (let j = 0; j < 3; j++) { const p = lerpV(kn, Hh, 0.15 + j * 0.25); stripe(c, add(p, V(-4, -2)), add(p, V(4, 2)), 1.7, look.stripe, 0.45); }
-        const kh = lerpV(kn, hk, 0.5);
-        stripe(c, add(kh, V(-3, -3)), add(kh, V(3, 3)), 1.5, look.stripe, 0.45);
-        const fp = g.legs.FL.paw;
-        for (let j = 1; j <= 2; j++) stripe(c, V(fp.x - 4, fp.y - 5 - j * 4.5), V(fp.x + 4, fp.y - 6 - j * 4.5), 1.5, look.stripe, 0.45);
         for (const [a, b] of [[[-1, -9], [-0.6, -4.8]], [[2.6, -9.4], [2.8, -5.2]], [[-4.2, -8.3], [-3.4, -4.9]], [[5.8, -8.5], [5.4, -5.4]]]) stripe(c, hp(...a), hp(...b), 1.3, look.stripe, 0.55);
         for (const [a, b] of [[[-6, 1.6], [-10.5, 0.6]], [[-5.6, 4], [-10.5, 4.6]]]) stripe(c, hp(...a), hp(...b), 1.2, look.stripe, 0.5);
+        if (P.tuck > 0.5) { legStripes(c, 'HL'); }
         c.filter = 'none';
       }
-      // белое: грудка, мордочка, лапки
+      // белое: грудка (и живот, когда на спине), мордочка, подобранные лапки
       c.filter = `blur(${1.6 * s}px)`;
       c.fillStyle = `rgba(255,252,246,${0.9 * look.white.chest})`;
-      const ch = add(add(Ss, n, 5.5), u, 4.5);
+      const ch = add(add(Ss, n, 5.5), g.u, 4.5);
       c.beginPath(); c.ellipse(ch.x, ch.y, 5.5, 8.5, g.ang, 0, TAU); c.fill();
+      if (g.flip) { const bl = add(lerpV(Hh, Ss, 0.45), n, 6); c.beginPath(); c.ellipse(bl.x, bl.y, 13, 4.5, g.ang, 0, TAU); c.fill(); }
       c.filter = `blur(${0.9 * s}px)`;
       c.fillStyle = `rgba(255,252,246,${0.92 * look.white.muzzle})`;
       const mz = hp(5.6, 5), mz2 = hp(2.5, 6.4), ha = -(P.headTilt || 0);
       c.beginPath(); c.ellipse(mz.x, mz.y, 5.2, 3.6, ha, 0, TAU); c.fill();
       c.beginPath(); c.ellipse(mz2.x, mz2.y, 5.4, 3, ha, 0, TAU); c.fill();
       c.filter = 'none';
-      whitePaws(c, g.paws.near);
+      if (P.tuck > 0.5) whitePaws(c, g.paws.near);
     }, 0.55, 0.55);
+
+    // ближние лапы — поверх корпуса, со своим контуром (видно бедро, поднятую лапку)
+    layer(g.legsN, look.base, c => {
+      shadeGrad(c, A.top, 0, 0.45, 0.4);
+      if (look.tabby) { c.filter = `blur(${0.5 * s}px)`; legStripes(c, 'FL'); legStripes(c, 'HL'); c.filter = 'none'; }
+      whitePaws(c, g.paws.near);
+    }, 0.5, 0.45);
     if (P.tailFront) tailLayer();
 
-    // детали: уши внутри, нос, рот, усы
+    // детали: уши внутри, нос, рот, язычок, усы
     setT(o);
     o.save();
     o.filter = `blur(${0.5 * s}px)`;
     o.fillStyle = hexA(look.inner, 0.75);
     for (const p of A.innerEars) { o.beginPath(); trace(o, p); o.fill(); }
     o.restore();
+    if (P.tongue > 0.5) {
+      const tg = hp(6.4, 6.3);
+      o.fillStyle = '#e07f8a';
+      o.beginPath(); o.ellipse(tg.x, tg.y, 1.5, 1.15, -(P.headTilt || 0), 0, TAU); o.fill();
+    }
     o.fillStyle = look.nose;
     o.beginPath(); trace(o, [hp(4.8, 1.6), hp(7.8, 1.6), hp(6.3, 3.3)]); o.fill();
     o.strokeStyle = hexA(look.ink, 0.6); o.lineWidth = 0.7; o.lineCap = 'round';

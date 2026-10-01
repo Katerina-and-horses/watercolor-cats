@@ -64,7 +64,7 @@
       state: 'away', t: 0, dur: 1e9, then: null, target: 0, anim: 'stand', animT: 0, animRev: false, post: 'stand', trans: null,
       love: saved.love ?? 60, pets: saved.pets ?? 0, plays: saved.plays ?? 0,
       blinkAt: rand(2, 6), blink: 0, lastPet: -99, greeted: true, frame: null, zAt: 0, purrAt: 0,
-      jumpY: 0, jump: null, ball: null, fun: 0, playCool: 0, lastStrike: -1, faceAfter: 1, pendingGreet: null,
+      jumpY: 0, jump: null, ball: null, fun: 0, catTarget: null, rounds: 0, partner: null, playCool: 0, lastStrike: -1, faceAfter: 1, pendingGreet: null,
     };
   }
   function set(c, st, o = {}) {
@@ -84,14 +84,31 @@
   const animDone = c => c.animT * ANIMS[c.anim].fps >= ANIMS[c.anim].n;
   function currentFrame(c) { return frames[c.key][c.anim][frameIndex(c)]; }
 
-  // позы-«этажи»: стоя, сидя, лёжа буханкой, клубком; переходы — короткие анимации
+  // позы-«этажи»: стоя, сидя, с задранной лапой, буханкой, клубком, на боку, на спине; переходы — короткие анимации
   const TRANS = {
     'stand>sit': ['sitDown', false], 'sit>stand': ['sitDown', true], 'stand>loaf': ['lieDown', false],
     'loaf>stand': ['lieDown', true], 'loaf>curl': ['curlIn', false], 'curl>loaf': ['curlIn', true],
+    'sit>legup': ['legUp', false], 'legup>sit': ['legUp', true], 'loaf>sprawl': ['flop', false], 'sprawl>loaf': ['flop', true],
+    'sprawl>roll': ['rollOver', false], 'roll>sprawl': ['rollOver', true],
   };
+  // первый шаг кратчайшего пути по графу поз
+  function nextPost(from, to) {
+    const prev = { [from]: null }, q = [from];
+    while (q.length) {
+      const a = q.shift();
+      if (a === to) break;
+      for (const key of Object.keys(TRANS)) {
+        const [x, y] = key.split('>');
+        if (x === a && !(y in prev)) { prev[y] = a; q.push(y); }
+      }
+    }
+    let s = to;
+    while (prev[s] !== from) s = prev[s];
+    return s;
+  }
   function posture(c, want) {
     if (c.post === want) return true;
-    const nxt = TRANS[c.post + '>' + want] ? want : c.post === 'curl' ? 'loaf' : c.post !== 'stand' ? 'stand' : want === 'curl' ? 'loaf' : want;
+    const nxt = nextPost(c.post, want);
     const [anim, rev] = TRANS[c.post + '>' + nxt];
     c.trans = { to: nxt }; c.anim = anim; c.animRev = rev; c.animT = 0;
     return false;
@@ -128,6 +145,14 @@
     if (c.then === 'wait') {
       c.dir = Math.sign(W / 2 - c.x) || 1;
       set(c, 'wait', { dur: rand(120, 200) });
+    } else if (c.then === 'agReady') {
+      const p = c.partner;
+      if (p && p.state === 'agWait') {
+        c.dir = Math.sign(p.x - c.x) || 1; p.dir = -c.dir;
+        const d = rand(6, 12); set(c, 'allogroom', { dur: d }); set(p, 'groomed', { dur: d });
+      } else set(c, 'sit', { dur: rand(3, 8) });
+    } else if (c.then === 'cuddle') {
+      set(c, 'sleep', { dur: rand(90, 300) * c.look.lazy });
     } else if (c.then === 'boopReady') {
       c.dir = c.faceAfter;
       set(c, 'boopReady', { dur: 20 });
@@ -141,6 +166,13 @@
     set(left, 'walk', { target: xm - 39 * k, then: 'boopReady' });
     set(right, 'walk', { target: xm + 39 * k, then: 'boopReady' });
   }
+  // кто лижет — подходит и садится на расстоянии головы; второй ждёт, сидя
+  function startAllogroom(c, o) {
+    const side = Math.sign(o.x - c.x) || 1;
+    c.partner = o; o.partner = c;
+    set(o, 'agWait', { dur: 25 });
+    set(c, 'walk', { target: clamp(o.x - side * 33 * k, minX(), maxX()), then: 'agReady' });
+  }
   const FREE = ['idle', 'sit', 'walk', 'groom', 'wait', 'loaf', 'watch'];
   function bored(c) {
     const b = c.ball;
@@ -153,16 +185,28 @@
   function decide(c) {
     const o = other(c), n = night(), lazy = c.look.lazy, play = c.look.play;
     const canBoop = visible(o) && ['idle', 'sit'].includes(o.state);
+    const canGroom = visible(o) && ['idle', 'sit', 'loaf', 'groom'].includes(o.state) && !o.trans;
+    const canPlay = visible(o) && ['idle', 'sit', 'walk', 'groom'].includes(o.state) && !night();
+    const oSleeps = visible(o) && o.state === 'sleep' && Math.abs(o.x - c.x) < W * 0.6;
     const rest = balls.find(b => !b.held && b.ground && !b.pinnedBy);
     const opts = [['walk', 20], ['sit', 20], ['idle', 8], ['groom', 10], ['loaf', 9 * lazy * (n ? 1.8 : 1)], ['sleep', (n ? 24 : 5) * lazy],
       ['leave', n ? 1 : 3], ['zoom', (n ? 0.3 : 2.5) * play], ['boop', canBoop ? 6 : 0], ['play', rest && now > c.playCool ? 14 * play : 0],
+      ['sprawl', 8 * lazy * (n ? 1.4 : 1)], ['allogroom', canGroom ? 5 : 0], ['playCat', canPlay ? 4 * play : 0], ['cuddle', oSleeps ? 12 : 0],
       ['wait', c.love < 35 ? 8 : 1.5]];
     let r = Math.random() * opts.reduce((s, x) => s + x[1], 0), choice = 'idle';
     for (const [name, w] of opts) if ((r -= w) < 0) { choice = name; break; }
     switch (choice) {
       case 'walk': set(c, 'walk', { target: rand(minX(), maxX()) }); break;
       case 'sit': set(c, 'sit', { dur: rand(8, 40) }); break;
-      case 'groom': set(c, 'groom', { dur: rand(5, 14) }); break;
+      case 'groom': set(c, Math.random() < 0.45 ? 'groomLeg' : 'groom', { dur: rand(5, 14) }); break;
+      case 'sprawl': set(c, 'sprawl', { dur: rand(25, 120) }); break;
+      case 'allogroom': startAllogroom(c, o); break;
+      case 'playCat': c.catTarget = o; c.rounds = 1 + Math.floor(rand(0, 3)); set(c, 'stalkCat'); break;
+      case 'cuddle': {
+        const side = o.x < W / 2 ? 1 : -1;
+        set(c, 'walk', { target: clamp(o.x + side * 36 * k, minX(), maxX()), then: 'cuddle' });
+        break;
+      }
       case 'loaf': set(c, 'loaf', { dur: rand(20, 90) }); break;
       case 'sleep': set(c, 'sleep', { dur: rand(60, 300) * (n ? 2.5 : 1) * lazy }); break;
       case 'leave': set(c, 'leave', { target: c.x < W / 2 ? offL() : offR() }); break;
@@ -179,7 +223,8 @@
   function notice(b, src) {
     for (const c of cats) {
       if (!visible(c) || c === src || c.ball === b) continue;
-      if (['chase', 'crouch', 'pounce', 'bat', 'notice', 'enter', 'leave', 'zoom', 'boop', 'boopReady'].includes(c.state)) continue;
+      if (['chase', 'crouch', 'pounce', 'bat', 'notice', 'enter', 'leave', 'zoom', 'boop', 'boopReady', 'allogroom', 'groomed', 'agWait',
+        'stalkCat', 'crouchCat', 'flee'].includes(c.state)) continue;
       const sleeping = c.post === 'curl', near = Math.abs(b.x - c.x) < 150 * k;
       let p = c.look.play * (sleeping ? (near ? 0.35 : 0.05) : 0.9);
       if (cats.some(o => o !== c && o.ball === b)) p *= 0.55;
@@ -205,8 +250,8 @@
     if (c.fun <= 0) bored(c);
     else set(c, 'chase');
   }
-  function startPounce(c) {
-    const b = c.ball, px = b.x + (b.ground ? b.vx * 0.3 : 0);
+  function startPounce(c, tx) {
+    const b = c.ball, px = tx ?? b.x + (b.ground ? b.vx * 0.3 : 0);
     c.dir = Math.sign(px - c.x) || c.dir;
     c.jump = { x0: c.x, x1: clamp(px - c.dir * 26 * k, 20 * k, W - 20 * k), T: 0.55, t: 0 };
     set(c, 'pounce');
@@ -247,7 +292,8 @@
         return;
       case 'enter': case 'walk':
         if (!posture(c, 'stand')) break;
-        setAnim(c, 'walk');
+        // хвост трубой — когда идёт здороваться или к другу
+        setAnim(c, c.state === 'enter' || ['wait', 'boopReady', 'agReady', 'cuddle'].includes(c.then) ? 'walkUp' : 'walk');
         if (moveTo(c, WALK, dt)) arrive(c);
         break;
       case 'leave':
@@ -304,12 +350,13 @@
         if (animDone(c)) set(c, 'idle', { dur: rand(2, 5) });
         break;
       case 'petted':
-        if (c.post === 'curl' || c.post === 'loaf') setAnim(c, c.post === 'curl' ? 'curl' : 'loaf');
+        if (['curl', 'loaf', 'sprawl', 'roll'].includes(c.post)) setAnim(c, c.post);
         else { if (!posture(c, 'sit')) break; setAnim(c, 'petted'); }
         if (now - c.lastPet > 2.5) {
           if (!c.greeted) { c.greeted = true; for (let j = 0; j < 3; j++) heart(c, 1); }
           if (c.post === 'curl') set(c, 'sleep', { dur: rand(40, 120) });
           else if (c.post === 'loaf') set(c, 'loaf', { dur: rand(20, 60) });
+          else if (c.post === 'sprawl' || c.post === 'roll') set(c, c.post, { dur: rand(15, 50) });
           else set(c, 'sit', { dur: rand(3, 8) });
         }
         break;
@@ -326,6 +373,86 @@
         setAnim(c, 'boop');
         if (Math.random() < dt / 1.6) heart(c, 0.7);
         if (c.t > c.dur || other(c).state !== 'boop') set(c, 'sit', { dur: rand(3, 8) });
+        break;
+
+      case 'groomLeg':
+        if (!posture(c, 'legup')) break;
+        setAnim(c, 'groomLeg');
+        if (c.t > c.dur) set(c, Math.random() < 0.4 ? 'groom' : 'sit', { dur: rand(3, 8) });
+        break;
+      case 'sprawl':
+        if (!posture(c, 'sprawl')) break;
+        setAnim(c, 'sprawl');
+        if (Math.random() < dt / 25) set(c, 'roll', { dur: rand(3, 7), then: c.dur - c.t });
+        else if (c.t > c.dur) decide(c);
+        break;
+      case 'roll':
+        if (!posture(c, 'roll')) break;
+        setAnim(c, 'roll');
+        if (c.t > c.dur) set(c, 'sprawl', { dur: Math.max(5, c.then || 20) });
+        break;
+      // --- друг с другом ---
+      case 'agWait':
+        if (!posture(c, 'sit')) break;
+        setAnim(c, 'sit');
+        if (c.t > c.dur) set(c, 'sit', { dur: rand(3, 8) });
+        break;
+      case 'allogroom':
+        if (!posture(c, 'sit')) break;
+        setAnim(c, 'lickOther');
+        if (Math.random() < dt / 2.5) heart(c, 0.6);
+        if (c.t > c.dur || !c.partner || c.partner.state !== 'groomed') { c.partner = null; set(c, Math.random() < 0.5 ? 'groom' : 'sit', { dur: rand(4, 9) }); }
+        break;
+      case 'groomed':
+        if (!posture(c, 'sit')) break;
+        setAnim(c, 'groomed');
+        if (now > c.purrAt) { c.purrAt = now + 2.2; purr(c); }
+        if (c.t > c.dur || !c.partner || c.partner.state !== 'allogroom') {
+          c.partner = null;
+          if (Math.random() < 0.4) { set(c, 'loaf', { dur: rand(20, 60) }); } else set(c, 'sit', { dur: rand(4, 9) });
+        }
+        break;
+      case 'stalkCat': {
+        // охота понарошку: подкрасться к другу, припасть, прыгнуть; тот отскакивает
+        const T = c.catTarget;
+        if (!T || !visible(T) || ['sleep', 'away', 'leave', 'zoom', 'enter'].includes(T.state)) { c.catTarget = null; set(c, 'sit', { dur: rand(3, 6) }); break; }
+        if (!posture(c, 'stand')) break;
+        const side = Math.sign(T.x - c.x) || c.dir, want = T.x - side * 58 * k, gap = want - c.x;
+        if (Math.abs(gap) > 5 * k) {
+          const sp = Math.abs(gap) > 140 * k ? WALK : STALK;
+          setAnim(c, sp === WALK ? 'walk' : 'stalk');
+          c.dir = Math.sign(gap); c.x += c.dir * Math.min(Math.abs(gap), sp * k * dt);
+        } else { c.dir = side; set(c, 'crouchCat', { dur: rand(0.7, 1.6) }); }
+        if (c.t > 30) { c.catTarget = null; set(c, 'sit', { dur: 4 }); }
+        break;
+      }
+      case 'crouchCat': {
+        const T = c.catTarget;
+        if (!T || !visible(T)) { c.catTarget = null; set(c, 'idle', { dur: 2 }); break; }
+        if (!posture(c, 'stand')) break;
+        setAnim(c, 'crouch');
+        c.dir = Math.sign(T.x - c.x) || c.dir;
+        if (Math.abs(T.x - c.x) > 95 * k) { set(c, 'stalkCat'); break; }
+        if (c.t > c.dur) {
+          startPounce(c, T.x);
+          if (!['flee', 'pounce', 'sleep', 'petted'].includes(T.state)) {
+            const away = Math.sign(T.x - c.x) || 1;
+            set(T, 'flee', { target: clamp(T.x + away * rand(90, 170) * k, minX(), maxX()) });
+          }
+        }
+        break;
+      }
+      case 'flee':
+        if (!posture(c, 'stand')) break;
+        setAnim(c, 'run');
+        if (moveTo(c, RUN * 0.8, dt)) {
+          const o = other(c);
+          c.dir = Math.sign(o.x - c.x) || -c.dir;
+          // иногда роли меняются — теперь охотится второй
+          if (Math.random() < 0.4 && visible(o) && o.catTarget === c) {
+            o.catTarget = null; c.catTarget = o; c.rounds = 1 + Math.floor(rand(0, 2)); set(c, 'stalkCat');
+          } else set(c, 'sit', { dur: rand(2, 6) });
+        }
         break;
 
       // --- игра ---
@@ -392,6 +519,13 @@
           c.jumpY = 0; c.jump = null;
           const b = c.ball;
           if (c.pendingGreet != null) { set(c, 'walk', { target: c.pendingGreet, then: 'wait' }); c.pendingGreet = null; break; }
+          if (c.catTarget) {
+            const T = c.catTarget;
+            if (Math.abs(T.x - c.x) < 45 * k) heart(c, 0.7);
+            if (--c.rounds > 0 && visible(T) && T.catTarget !== c) set(c, 'stalkCat');
+            else { c.catTarget = null; set(c, 'sit', { dur: rand(3, 8) }); }
+            break;
+          }
           if (alive(b) && !b.held && !b.pinnedBy && Math.abs(b.x - (c.x + c.dir * REACH * k)) < 18 * k && b.y > groundY - 30 * k) {
             b.vx *= 0.1; if (b.vy < 0) b.vy = 0;
             b.pinnedBy = c; c.plays++; stats.catches++;
@@ -475,7 +609,7 @@
     if (Math.random() < (pat ? 1 : 0.4)) heart(c, pat ? 1 : 0.8);
     if (now > c.purrAt) { c.purrAt = now + 1.5; purr(c); }
     if (pat && c.post !== 'curl' && Math.random() < 0.45) meow(c);
-    if (['idle', 'sit', 'wait', 'groom', 'walk', 'watch', 'boopReady', 'loaf', 'sleep', 'petted'].includes(c.state)) {
+    if (['idle', 'sit', 'wait', 'groom', 'groomLeg', 'walk', 'watch', 'boopReady', 'loaf', 'sleep', 'petted', 'sprawl', 'roll', 'agWait'].includes(c.state)) {
       if (c.state === 'watch' && c.ball && c.ball.pinnedBy === c) c.ball.pinnedBy = null;
       if (c.state === 'watch') c.ball = null;
       set(c, 'petted');
@@ -613,12 +747,14 @@
     if (c.blink > 0 && !['sleep'].includes(c.state)) return 0;
     if (c.trans && (c.anim === 'curlIn')) return 0;
     if (c.state === 'sleep' || (c.state === 'petted' && c.post === 'curl')) return 0;
-    if (c.state === 'loaf' && c.t > 8) return 0;
-    if (['petted', 'boop', 'groom'].includes(c.state) || (c.state === 'stretch' && frameIndex(c) > 1 && frameIndex(c) < 6)) return 1;
+    if ((c.state === 'loaf' || c.state === 'sprawl') && c.t > 8) return 0;
+    if (['petted', 'boop', 'groom', 'groomLeg', 'allogroom', 'groomed'].includes(c.state) || (c.state === 'stretch' && frameIndex(c) > 1 && frameIndex(c) < 6)) return 1;
     return 2;
   }
   function lookTarget(c) {
     if (alive(c.ball)) return c.ball;
+    const T = c.catTarget || (['agWait', 'allogroom', 'groomed'].includes(c.state) && c.partner);
+    if (T && visible(T)) return { x: T.x, y: gy(T) - 25 * k };
     if (drag) return drag.b;
     let best = null, bd = 220 * k;
     for (const b of balls) { const d = Math.abs(b.x - c.x); if ((Math.abs(b.vx) > 20 * k || !b.ground) && d < bd) { bd = d; best = b; } }
@@ -634,7 +770,7 @@
       const dx = (tg.x - ex) * c.dir, dy = tg.y - ey, d = Math.hypot(dx, dy) || 1;
       lx = dx / d; ly = dy / d;
     }
-    const excited = ['chase', 'crouch', 'pounce', 'bat', 'watch', 'notice'].includes(c.state);
+    const excited = ['chase', 'crouch', 'pounce', 'bat', 'watch', 'notice', 'stalkCat', 'crouchCat', 'flee', 'roll'].includes(c.state);
     const dil = excited ? 1 : night() ? 0.7 : 0.25;
     for (const [p, rx, ry] of [[a.eyeN, 2.5, 2.2], [a.eyeF, 2.15, 2.05]]) {
       g.save();
@@ -660,7 +796,7 @@
   function drawCat(g, c) {
     const fr = currentFrame(c), y = gy(c), yG = groundY - c.back * k;
     c.frame = fr;
-    const lying = c.post === 'loaf' || c.post === 'curl' || c.anim === 'stretch';
+    const lying = ['loaf', 'curl', 'sprawl', 'roll'].includes(c.post) || c.anim === 'stretch';
     const sh = lying ? sprites.shadowWide : sprites.shadow, ss = 1 - Math.min(0.4, (c.jumpY || 0) / 30);
     g.drawImage(sh, c.x - sh.width * ss / 2, yG - sh.height * ss / 2 + k, sh.width * ss, sh.height * ss);
     g.save();
@@ -770,7 +906,7 @@
       try {
         tick(dt);
         active = cats.some(visible) || particles.length || balls.length || drag;
-        fast = !!drag || cats.some(c => ['zoom', 'pounce', 'chase', 'bat'].includes(c.state)) || balls.some(b => !b.ground || b.vx);
+        fast = !!drag || cats.some(c => ['zoom', 'pounce', 'chase', 'bat', 'flee', 'stalkCat'].includes(c.state)) || balls.some(b => !b.ground || b.vx);
         const sig = signature();
         if (sig !== lastSig) {
           ctx.clearRect(0, 0, W, H);
@@ -849,7 +985,7 @@
       frames[key][n].forEach((fr, i) => {
         sc.drawImage(fr.c, i * cw, row * ch);
         sc.save(); sc.translate(i * cw + SPR.OX * k, row * ch + SPR.OY * k); sc.scale(k, k);
-        drawEyes(sc, fake(key), fr.anchors, ['curl', 'curlIn'].includes(n) ? 0 : ['petted', 'groom', 'boop'].includes(n) ? 1 : 2); sc.restore();
+        drawEyes(sc, fake(key), fr.anchors, ['curl', 'curlIn', 'sprawl'].includes(n) ? 0 : ['petted', 'groom', 'boop', 'groomLeg', 'legUp', 'lickOther', 'groomed'].includes(n) ? 1 : 2); sc.restore();
       });
       sc.fillStyle = '#555'; sc.font = `${11 * k}px sans-serif`; sc.fillText(`${key} ${n}`, 4, row * ch + 13 * k);
       sc.strokeStyle = 'rgba(0,0,0,0.08)'; sc.beginPath(); sc.moveTo(0, row * ch + SPR.OY * k); sc.lineTo(sheet.width, row * ch + SPR.OY * k); sc.stroke();
@@ -860,7 +996,7 @@
     // 2. крупный план
     const s2 = 3, big = Art.mk(SPR.W * s2 * 3, SPR.H * s2), bc = big.getContext('2d');
     paper(bc);
-    [['ginger', 'stand', 0], ['smoky', 'sit', 0], ['ginger', 'pounce', 2]].forEach(([key, n, i], j) => {
+    [['ginger', 'stand', 0], ['smoky', 'groomLeg', 0], ['ginger', 'walk', 2]].forEach(([key, n, i], j) => {
       const f = Art.renderFrame(ANIMS[n].pose(i), Art.LOOKS[key], s2);
       bc.drawImage(f.c, j * SPR.W * s2, 0);
       bc.save(); bc.translate(j * SPR.W * s2 + SPR.OX * s2, SPR.OY * s2); bc.scale(s2, s2); drawEyes(bc, fake(key), f.anchors, 2); bc.restore();
@@ -931,6 +1067,39 @@
     B.post = 'stand'; set(B, 'stretch'); setAnim(B, 'stretch'); B.animT = 0.8;
     for (let i = 0; i < 3; i++) tick(0.02);
     scene('zoom+stretch');
+    // задняя лапа в потягушках, вылизывание сидя: передняя лапа и «виолончель»
+    A.x = W * 0.3; A.post = 'stand'; A.trans = null; set(A, 'stretch'); setAnim(A, 'stretch'); A.animT = 2.6;
+    B.x = W * 0.6; B.post = 'legup'; B.trans = null; set(B, 'groomLeg', { dur: 99 });
+    tick(0.02);
+    scene('hindstretch+groomLeg');
+    A.post = 'sit'; set(A, 'groom', { dur: 99 }); setAnim(A, 'groom'); A.animT = 1.6;
+    tick(0.02);
+    scene('groom paw wipe');
+    // валяются: на боку и пузом кверху
+    A.post = 'sprawl'; set(A, 'sprawl', { dur: 999 }); B.post = 'roll'; set(B, 'roll', { dur: 999 });
+    for (let i = 0; i < 5; i++) tick(0.1);
+    scene('sprawl+roll');
+    // спят рядом клубочками
+    A.post = 'curl'; set(A, 'sleep', { dur: 999 }); B.post = 'curl'; set(B, 'sleep', { dur: 999 }); B.x = A.x + 36 * k;
+    tick(0.1);
+    scene('cuddle');
+    // взаимное вылизывание
+    for (const c of cats) { c.post = 'sit'; c.trans = null; set(c, 'sit', { dur: 99 }); }
+    A.x = W * 0.3; B.x = W * 0.5; startAllogroom(A, B);
+    for (let i = 0; i < 400 && A.state !== 'allogroom'; i++) tick(0.1);
+    tick(0.1);
+    out.log.push(`allogroom: ${A.state}/${B.state} dist=${Math.round(B.x - A.x)}`);
+    scene('allogroom');
+    // охота понарошку друг на друга
+    for (const c of cats) { c.post = 'stand'; c.trans = null; set(c, 'idle', { dur: 99 }); c.partner = null; }
+    A.x = W * 0.2; B.x = W * 0.5; A.catTarget = B; A.rounds = 2; set(A, 'stalkCat');
+    let gotFlee = false;
+    for (let i = 0; i < 1500 && !gotFlee; i++) {
+      tick(1 / 30);
+      for (const c of cats) if (visible(c)) c.frame = currentFrame(c);
+      if (A.state === 'pounce' && A.jumpY > 9 && B.state === 'flee') { gotFlee = true; scene('playCat'); }
+    }
+    out.log.push(`playCat: ${gotFlee} ${A.state}/${B.state}`);
 
     // 4. долгий прогон: 6 часов по 0.1 с, со случайными действиями пользователя
     const hist = {}, t0 = performance.now();
