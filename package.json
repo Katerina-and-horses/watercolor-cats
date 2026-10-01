@@ -1,7 +1,7 @@
 {
   "name": "watercolor-cats",
   "productName": "Котики",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Два акварельных котика живут внизу экрана и играют с клубочком",
   "main": "main.js",
   "author": "Katerina-and-horses",
