@@ -1,0 +1,38 @@
+{
+  "name": "watercolor-cats",
+  "productName": "Котики",
+  "version": "1.0.0",
+  "description": "Два акварельных котика живут внизу экрана и играют с клубочком",
+  "main": "main.js",
+  "author": "Katerina-and-horses",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "selftest": "electron . --selftest=selftest-out",
+    "dist": "electron-builder --win nsis --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "ru.cats.watercolor",
+    "productName": "Котики",
+    "executableName": "Kotiki",
+    "files": ["main.js", "preload.js", "renderer/**", "assets/**"],
+    "directories": { "output": "dist", "buildResources": "build" },
+    "electronLanguages": ["ru", "en-US"],
+    "win": { "target": "nsis", "icon": "build/icon.ico" },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Котики",
+      "artifactName": "Kotiki-Setup-${version}.${ext}",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

@@ -1,0 +1,40 @@
+name: build
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  workflow_dispatch: {}
+permissions:
+  contents: write
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install --no-audit --no-fund
+      - run: sudo apt-get update && sudo apt-get install -y xvfb
+      - run: xvfb-run -a npx electron . --no-sandbox --selftest=selftest-out
+      - if: always()
+        run: cat selftest-out/log.txt || true
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: selftest, path: selftest-out }
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install --no-audit --no-fund
+      - run: npx electron-builder --win nsis --publish never
+        env: { CSC_IDENTITY_AUTO_DISCOVERY: 'false' }
+      - uses: actions/upload-artifact@v4
+        with: { name: installer, path: 'dist/*.exe' }
+      - if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
+        run: gh release create "${{ github.ref_name }}" dist/Kotiki-Setup-*.exe --title "Котики ${{ github.ref_name }}" --notes-file RELEASE.md
