@@ -1087,7 +1087,7 @@
     for (const c of cats) { c.post = 'sit'; c.trans = null; set(c, 'sit', { dur: 99 }); }
     A.x = W * 0.3; B.x = W * 0.5; startAllogroom(A, B);
     for (let i = 0; i < 400 && A.state !== 'allogroom'; i++) tick(0.1);
-    tick(0.1);
+    for (let i = 0; i < 15; i++) tick(0.1);
     out.log.push(`allogroom: ${A.state}/${B.state} dist=${Math.round(B.x - A.x)}`);
     scene('allogroom');
     // охота понарошку друг на друга

@@ -99,7 +99,7 @@ const Art = (() => {
   // задняя — бедро, колено (вперёд), высокая пятка (скакательный сустав) и длинная плюсна до пальцев.
   // H — центр крупа, S — центр груди; позвоночник — дуга H→S (arch>0 — выгнут вверх, <0 — прогнут),
   // лопатка (scap) свободная, выступает над линией спины при подкрадывании и в опоре на переднюю лапу.
-  // flip — лёжа на спине, лапы вверх. tuck — лапы подобраны под корпус (без отдельного контура).
+  // flip — лёжа на спине, лапы вверх. over — ближние лапы, которые рисуются поверх тела своим слоем.
   const RH = 9.4, RS = 9.2;
   const qb = (a, c, b, t) => V((1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * c.y + t * t * b.y);
   const unit = a => { const l = len(a) || 1; return V(a.x / l, a.y / l); };
@@ -146,7 +146,8 @@ const Art = (() => {
 
     // лапы
     const metaV = m => V(-Math.sin(m), -Math.cos(m));
-    const legs = {}, tuck = (P.tuck || 0) > 0.5;
+    // по умолчанию ближние лапы сливаются с корпусом; отдельным слоем со своим контуром — только лапа поверх тела
+    const legs = {}, over = P.over || '';
     for (const k of ['FL', 'FR', 'HL', 'HR']) {
       const farLeg = k[1] === 'R', dx = farLeg ? 1.8 : 0, dy = farLeg ? -0.8 : 0;
       const foot = P2(P.feet[k]);
@@ -172,8 +173,8 @@ const Art = (() => {
         legs[k] = { paw: pawC, knee: kn, hock };
       }
       if (farLeg) far.push(poly, paw);
-      else if (tuck) body.push(poly, paw);
-      else legsN.push(poly, paw);
+      else if (over.includes(k)) legsN.push(poly, paw);
+      else body.push(poly, paw);
       (farLeg ? paws.far : paws.near).push(paw);
     }
 
@@ -277,6 +278,7 @@ const Art = (() => {
   // смешивание поз (числа, массивы и вложенные объекты)
   function mix(a, b, t) {
     if (typeof a === 'number') return lerp(a, b ?? a, t);
+    if (typeof a !== 'object') return t < 0.5 ? a : b ?? a;
     if (Array.isArray(a)) return a.map((v, i) => mix(v, b[i], t));
     const o = {};
     for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) o[k] = k in a ? (k in b ? mix(a[k], b[k], t) : a[k]) : b[k];
@@ -339,10 +341,10 @@ const Art = (() => {
   const GROOM_PAW = [[17, -24], [17, -22.5], [17, -24], [17, -22.5], [17, -24], [20, -32], [15, -39], [10, -41], [13, -33], [17, -25]];
   // «виолончель»: сидя на бедре, дальняя задняя лапа задрана вверх, голова к животу и внутренней стороне бедра
   const GROOM_LEG = edit(SIT, q => {
-    q.H = [-8, -9.5]; q.S = [3, -26]; q.arch = 3.5;
-    q.feet.HR = [9, -48]; q.meta.HR = Math.PI; q.feet.HL = [2, -2.4];
-    q.feet.FL = [11, -2.4]; q.feet.FR = [6, -2.4];
-    q.neck = -0.35; q.neckLen = 9.5; q.headTilt = -0.75; q.ears = 0.15; q.tongue = 1;
+    q.H = [-7, -9.5]; q.S = [-3, -27]; q.arch = 4;
+    q.feet.HL = [14, -50]; q.meta.HL = Math.PI; q.feet.HR = [1, -2.4]; q.over = 'HL';
+    q.feet.FL = [8, -2.4]; q.feet.FR = [4, -2.4];
+    q.neck = -0.2; q.neckLen = 10; q.headTilt = -0.7; q.ears = 0.15; q.tongue = 1;
     q.tail = { a: 3.6, curl: 0.4, wave: 0, ph: 0, len: 34 }; q.tailFront = 0;
   });
 
@@ -354,7 +356,7 @@ const Art = (() => {
     run: { n: 6, fps: 14, pose: i => runPose(i, 6) },
     crouch: { n: 4, fps: 8, pose: i => edit(CROUCH, q => { q.H[0] += 1.3 * Math.sin(i / 4 * TAU); q.H[1] += 0.5 * Math.cos(i / 4 * TAU); q.tail.wave = 0.9 * Math.sin(i / 4 * TAU); q.tail.ph = 2; }) },
     pounce: { n: 6, fps: 11, once: true, pose: i => POUNCE[i] },
-    bat: { n: 6, fps: 9, strike: 3, pose: i => edit(BAT, q => { q.feet.FL = BAT_PAW[i].slice(); q.headTilt = 0.05 + 0.08 * Math.sin(i / 6 * TAU); q.tail.wave = 0.6 * Math.sin(i / 6 * TAU); }) },
+    bat: { n: 6, fps: 9, strike: 3, pose: i => edit(BAT, q => { q.feet.FL = BAT_PAW[i].slice(); q.over = 'FL'; q.headTilt = 0.05 + 0.08 * Math.sin(i / 6 * TAU); q.tail.wave = 0.6 * Math.sin(i / 6 * TAU); }) },
     sit: { n: 6, fps: 2, pose: i => edit(SIT, q => { q.tail.curl += 0.25 * Math.sin(i / 6 * TAU); }) },
     sitDown: { n: 5, fps: 9, once: true, pose: i => mix(STAND, SIT, smooth(i / 4)) },
     wait: { n: 6, fps: 3, pose: i => edit(SIT, q => { q.headTilt = 0.15; q.tail.curl += 0.4 * Math.sin(i / 6 * TAU); q.ears = -0.1; }) },
@@ -362,12 +364,12 @@ const Art = (() => {
     groom: {
       n: 10, fps: 4, pose: i => edit(SIT, q => {
         const wipe = i >= 5;
-        q.feet.FL = GROOM_PAW[i].slice();
+        q.feet.FL = GROOM_PAW[i].slice(); q.over = 'FL';
         q.neck = wipe ? 0.65 : 0.5; q.neckLen = 10; q.headTilt = wipe ? -0.55 + 0.1 * Math.sin(i) : -0.3 + 0.1 * (i % 2);
         q.ears = wipe ? 0.35 : 0.1; q.tongue = !wipe && i % 2 === 0 ? 1 : 0;
       }),
     },
-    groomLeg: { n: 8, fps: 4, pose: i => edit(GROOM_LEG, q => { q.headTilt += 0.1 * Math.sin(i / 8 * TAU * 2); q.neckLen += 0.6 * Math.sin(i / 8 * TAU * 2); q.tongue = i % 2 ? 0 : 1; q.feet.HR[1] += 1.2 * Math.sin(i / 8 * TAU); }) },
+    groomLeg: { n: 8, fps: 4, pose: i => edit(GROOM_LEG, q => { q.headTilt += 0.1 * Math.sin(i / 8 * TAU * 2); q.neckLen += 0.6 * Math.sin(i / 8 * TAU * 2); q.tongue = i % 2 ? 0 : 1; q.feet.HL[1] += 1.2 * Math.sin(i / 8 * TAU); }) },
     legUp: { n: 5, fps: 7, once: true, pose: i => mix(SIT, GROOM_LEG, smooth(i / 4)) },
     stretch: {
       n: 14, fps: 4, once: true, pose: i => {
@@ -536,7 +538,18 @@ const Art = (() => {
         }
         for (const [a, b] of [[[-1, -9], [-0.6, -4.8]], [[2.6, -9.4], [2.8, -5.2]], [[-4.2, -8.3], [-3.4, -4.9]], [[5.8, -8.5], [5.4, -5.4]]]) stripe(c, hp(...a), hp(...b), 1.3, look.stripe, 0.55);
         for (const [a, b] of [[[-6, 1.6], [-10.5, 0.6]], [[-5.6, 4], [-10.5, 4.6]]]) stripe(c, hp(...a), hp(...b), 1.2, look.stripe, 0.5);
-        if (P.tuck > 0.5) { legStripes(c, 'HL'); }
+        if (!(P.over || '').includes('HL')) legStripes(c, 'HL');
+        if (!(P.over || '').includes('FL')) legStripes(c, 'FL');
+        c.filter = 'none';
+      }
+      // объём бедра: мягкая тень по переднему краю и блик сверху
+      {
+        const L = g.legs.HL, HJ = add(Hh, V(-1, 2)), m = lerpV(HJ, L.knee, 0.5), d = sub(L.knee, HJ), a = Math.atan2(d.y, d.x);
+        c.filter = `blur(${1.6 * s}px)`;
+        c.strokeStyle = hexA(look.shade, 0.35); c.lineWidth = 1.6;
+        c.beginPath(); c.ellipse(m.x, m.y, len(d) / 2 + 4, 7, a, -2.4, 0.6); c.stroke();
+        c.fillStyle = hexA(look.light, 0.22);
+        c.beginPath(); c.ellipse(m.x - 1, m.y - 2, len(d) / 2, 4, a, 0, TAU); c.fill();
         c.filter = 'none';
       }
       // белое: грудка (и живот, когда на спине), мордочка, подобранные лапки
@@ -551,14 +564,14 @@ const Art = (() => {
       c.beginPath(); c.ellipse(mz.x, mz.y, 5.2, 3.6, ha, 0, TAU); c.fill();
       c.beginPath(); c.ellipse(mz2.x, mz2.y, 5.4, 3, ha, 0, TAU); c.fill();
       c.filter = 'none';
-      if (P.tuck > 0.5) whitePaws(c, g.paws.near);
+      whitePaws(c, g.paws.near.filter((_, i) => !(P.over || '').includes(i ? 'HL' : 'FL')));
     }, 0.55, 0.55);
 
     // ближние лапы — поверх корпуса, со своим контуром (видно бедро, поднятую лапку)
     layer(g.legsN, look.base, c => {
       shadeGrad(c, A.top, 0, 0.45, 0.4);
-      if (look.tabby) { c.filter = `blur(${0.5 * s}px)`; legStripes(c, 'FL'); legStripes(c, 'HL'); c.filter = 'none'; }
-      whitePaws(c, g.paws.near);
+      if (look.tabby) { c.filter = `blur(${0.5 * s}px)`; for (const k of ['FL', 'HL']) if ((P.over || '').includes(k)) legStripes(c, k); c.filter = 'none'; }
+      whitePaws(c, g.paws.near.filter((_, i) => (P.over || '').includes(i ? 'HL' : 'FL')));
     }, 0.5, 0.45);
     if (P.tailFront) tailLayer();
 
