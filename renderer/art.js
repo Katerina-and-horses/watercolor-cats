@@ -101,6 +101,8 @@ const Art = (() => {
   // лопатка (scap) свободная, выступает над линией спины при подкрадывании и в опоре на переднюю лапу.
   // flip — лёжа на спине, лапы вверх. over — ближние лапы, которые рисуются поверх тела своим слоем.
   const RH = 9.4, RS = 9.2;
+  // тазобедренный сустав — внутри крупа, чтобы бедро пряталось в корпусе, а колено было у линии живота
+  const HIP = [-2, 1], THIGH = 11.5, SHIN = 12, META = 7.5, UARM = 11, FARM = 12, FAR_DX = 1.8;
   const qb = (a, c, b, t) => V((1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * c.y + t * t * b.y);
   const unit = a => { const l = len(a) || 1; return V(a.x / l, a.y / l); };
   const gauss = (t, m, w) => Math.exp(-(((t - m) / w) ** 2));
@@ -159,7 +161,7 @@ const Art = (() => {
     // по умолчанию ближние лапы сливаются с корпусом; отдельным слоем со своим контуром — только лапа поверх тела
     const legs = {}, over = P.over || '';
     for (const k of ['FL', 'FR', 'HL', 'HR']) {
-      const farLeg = k[1] === 'R', dx = farLeg ? 1.8 : 0, dy = farLeg ? -0.8 : 0;
+      const farLeg = k[1] === 'R', dx = farLeg ? FAR_DX : 0, dy = farLeg ? -0.8 : 0;
       const foot = P2(P.feet[k]);
       let poly, paw;
       if (k[0] === 'F') {
@@ -169,7 +171,7 @@ const Art = (() => {
         let wrist;
         if (cm != null || (!flip && foot.y > -4.5 && foot.y - SJ.y > 14)) wrist = add(foot, metaV(cm ?? 0.4), 4.2);
         else { const d = unit(sub(foot, SJ)), n2 = V(-d.y, d.x); wrist = add(add(foot, d, -3.4), n2, 1.3 * fb); }
-        const r = ik(SJ, wrist, 10.5, 11.5, fb), el = flip ? r.joint : ground(r.joint);
+        const r = ik(SJ, wrist, UARM, FARM, fb), el = flip ? r.joint : ground(r.joint);
         const up = unit(sub(r.end, foot));
         poly = limb([[add(SJ, V(0, -3 * sg)), 5.6, 6], [SJ, 5.4, 5.8], [lerpV(SJ, el, 0.6), 4.4, 4.8], [el, 3.6, 4.6],
           [lerpV(el, r.end, 0.4), 3.3, 3.4], [lerpV(el, r.end, 0.8), 2.6, 2.7], [r.end, 2.5, 3], [lerpV(r.end, foot, 0.6), 2.3, 2.4]]);
@@ -178,9 +180,9 @@ const Art = (() => {
         legs[k] = { paw: pw.c, elbow: el, wrist: r.end };
       } else {
         // бедро (широкое, «окорочок») → колено вперёд → голень назад → высокая пятка → длинная плюсна
-        const hb = flip ? 1 : -1, HJ = add(H, V(-1 + dx, 3.5 * sg + dy)), mv = metaV(P.meta[k] ?? 0.3);
-        const r = ik(HJ, add(foot, mv, 9), 12.5, 11.5, hb), kn = flip ? r.joint : ground(r.joint);
-        const hock = r.end, pawB = add(hock, mv, -9);
+        const hb = flip ? 1 : -1, HJ = add(H, V(HIP[0] + dx, HIP[1] * sg + dy)), mv = metaV(P.meta[k] ?? 0.3);
+        const r = ik(HJ, add(foot, mv, META), THIGH, SHIN, hb), kn = flip ? r.joint : ground(r.joint);
+        const hock = r.end, pawB = add(hock, mv, -META);
         poly = limb([[add(HJ, sub(HJ, kn), 0.25), 8, 8.5], [HJ, 8, 9.5], [lerpV(HJ, kn, 0.55), 6.6, 7.2], [kn, 4.2, 4.6],
           [lerpV(kn, hock, 0.3), 3.4, 5], [lerpV(kn, hock, 0.7), 2.6, 3.6], [hock, 2.3, 3.3], [lerpV(hock, pawB, 0.5), 2.2, 2.3], [pawB, 2.3, 2.3]]);
         const pw = pawAt(pawB, mv, 3.8);
@@ -219,9 +221,9 @@ const Art = (() => {
   }
 
   // ---------- позы ----------
-  // стоя круп чуть выше холки, голова ниже линии спины не опускается; хвост расслаблен — вниз и кончиком вверх
+  // стоя спина ровная, круп не выше холки, голова ниже линии спины не опускается; хвост расслаблен — вниз и кончиком вверх
   const STAND = {
-    H: [-17, -31], S: [15, -29.5], arch: 1, scap: 0.4, tuck: 0, flip: 0,
+    H: [-17, -28.5], S: [15, -29.5], arch: 1, scap: 0.4, tuck: 0, flip: 0,
     feet: { FL: [17, -2.4], FR: [13.5, -2.4], HL: [-17, -2.4], HR: [-21, -2.4] }, meta: { HL: 0.32, HR: 0.32 },
     neck: 0.75, neckLen: 12.5, headTilt: 0, ears: 0, tongue: 0,
     tail: { a: 3.5, curl: -1.3, wave: 0, ph: 0, len: 34 }, tailFront: 0,
@@ -319,6 +321,8 @@ const Art = (() => {
   function gait(base, ph, offs, stance, A, lift, flex = 1, reach = 0) {
     const q = clone(base);
     q.carp = q.carp || {}; q.meta = q.meta || {};
+    // на ходу ближние и дальние лапы стоят одинаково относительно своих суставов — шаг у пары одной длины
+    q.feet.FR[0] = q.feet.FL[0] + FAR_DX; q.feet.HR[0] = q.feet.HL[0] + FAR_DX;
     for (const k in offs) {
       const p = ((ph + offs[k]) % 1 + 1) % 1, f = q.feet[k], fr = k[0] === 'F', G = GAIT[k[0]];
       const b = fr ? 0.4 : base.meta[k] ?? 0.32;
@@ -584,7 +588,7 @@ const Art = (() => {
       }
       // объём бедра: мягкая тень по переднему краю и блик сверху
       {
-        const L = g.legs.HL, HJ = add(Hh, V(-1, 3.5 * (g.flip ? -1 : 1))), m = lerpV(HJ, L.knee, 0.5), d = sub(L.knee, HJ), a = Math.atan2(d.y, d.x);
+        const L = g.legs.HL, HJ = add(Hh, V(HIP[0], HIP[1] * (g.flip ? -1 : 1))), m = lerpV(HJ, L.knee, 0.5), d = sub(L.knee, HJ), a = Math.atan2(d.y, d.x);
         c.filter = `blur(${1.6 * s}px)`;
         c.strokeStyle = hexA(look.shade, 0.35); c.lineWidth = 1.6;
         c.beginPath(); c.ellipse(m.x, m.y, len(d) / 2 + 4, 7, a, -2.4, 0.6); c.stroke();
