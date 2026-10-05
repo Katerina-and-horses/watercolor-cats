@@ -101,8 +101,9 @@ const Art = (() => {
   // лопатка (scap) свободная, выступает над линией спины при подкрадывании и в опоре на переднюю лапу.
   // flip — лёжа на спине, лапы вверх. over — ближние лапы, которые рисуются поверх тела своим слоем.
   const RH = 9.4, RS = 9.2;
-  // тазобедренный сустав — внутри крупа, чтобы бедро пряталось в корпусе, а колено было у линии живота
-  const HIP = [-2, 1], THIGH = 11.5, SHIN = 12, META = 7.5, UARM = 11, FARM = 12, FAR_DX = 1.8;
+  // тазобедренный сустав — внутри крупа, чтобы бедро пряталось в корпусе, а колено было у линии живота;
+  // плечо — позади переднего края груди: грудина выступает перед лапами
+  const HIP = [1, 1.5], SHO = [-1.5, 2.5], THIGH = 11.5, SHIN = 12, META = 7.5, UARM = 11.5, FARM = 12.5, FAR_DX = 1.8;
   const qb = (a, c, b, t) => V((1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * c.y + t * t * b.y);
   const unit = a => { const l = len(a) || 1; return V(a.x / l, a.y / l); };
   const gauss = (t, m, w) => Math.exp(-(((t - m) / w) ** 2));
@@ -124,7 +125,7 @@ const Art = (() => {
     }
     body.push(limb(chain), ell(H.x, H.y, RH, RH, 0, 20), ell(S.x, S.y, RS, RS, 0, 20));
     const uH = unit(sub(C, H)), nH = V(-uH.y * sg, uH.x * sg);
-    body.push(ell(H.x - uH.x * 1.5, H.y - uH.y * 1.5, RH + 1.1, RH + 0.5, Math.atan2(uH.y, uH.x), 22));
+    body.push(ell(H.x - uH.x * 0.4, H.y - uH.y * 0.4, RH + 0.3, RH + 0.2, Math.atan2(uH.y, uH.x), 22));
 
     // голова: короткая толстая шея, череп/щёки/мордочка в повороте головы (вид 3/4)
     let Hc = add(S, dirA(P.neck), P.neckLen);
@@ -166,7 +167,7 @@ const Art = (() => {
       let poly, paw;
       if (k[0] === 'F') {
         // плечо → локоть (назад, у нижнего края груди) → прямое предплечье → запястье → короткая пясть к пальцам
-        const fb = flip ? -1 : 1, SJ = add(S, V(2 + dx, 2.5 * sg + dy));
+        const fb = flip ? -1 : 1, SJ = add(S, V(SHO[0] + dx, SHO[1] * sg + dy));
         const cm = P.carp && P.carp[k];
         let wrist;
         if (cm != null || (!flip && foot.y > -4.5 && foot.y - SJ.y > 14)) wrist = add(foot, metaV(cm ?? 0.4), 4.2);
@@ -183,7 +184,7 @@ const Art = (() => {
         const hb = flip ? 1 : -1, HJ = add(H, V(HIP[0] + dx, HIP[1] * sg + dy)), mv = metaV(P.meta[k] ?? 0.3);
         const r = ik(HJ, add(foot, mv, META), THIGH, SHIN, hb), kn = flip ? r.joint : ground(r.joint);
         const hock = r.end, pawB = add(hock, mv, -META);
-        poly = limb([[add(HJ, sub(HJ, kn), 0.25), 8, 8.5], [HJ, 8, 9.5], [lerpV(HJ, kn, 0.55), 6.6, 7.2], [kn, 4.2, 4.6],
+        poly = limb([[add(HJ, sub(HJ, kn), 0.25), 8, 7], [HJ, 8, 7.8], [lerpV(HJ, kn, 0.55), 6.6, 7.2], [kn, 4.2, 4.6],
           [lerpV(kn, hock, 0.3), 3.4, 5], [lerpV(kn, hock, 0.7), 2.6, 3.6], [hock, 2.3, 3.3], [lerpV(hock, pawB, 0.5), 2.2, 2.3], [pawB, 2.3, 2.3]]);
         const pw = pawAt(pawB, mv, 3.8);
         paw = pw.poly;
@@ -224,7 +225,7 @@ const Art = (() => {
   // стоя спина ровная, круп не выше холки, голова ниже линии спины не опускается; хвост расслаблен — вниз и кончиком вверх
   const STAND = {
     H: [-17, -28.5], S: [15, -29.5], arch: 1, scap: 0.4, tuck: 0, flip: 0,
-    feet: { FL: [17, -2.4], FR: [13.5, -2.4], HL: [-17, -2.4], HR: [-21, -2.4] }, meta: { HL: 0.32, HR: 0.32 },
+    feet: { FL: [13.5, -2.4], FR: [10, -2.4], HL: [-17, -2.4], HR: [-21, -2.4] }, meta: { HL: 0.32, HR: 0.32 },
     neck: 0.75, neckLen: 12.5, headTilt: 0, ears: 0, tongue: 0,
     tail: { a: 3.5, curl: -1.3, wave: 0, ph: 0, len: 34 }, tailFront: 0,
   };
@@ -306,18 +307,12 @@ const Art = (() => {
 
   // походка: латеральная последовательность ЛЗ→ЛП→ПЗ→ПП, опора >50% цикла; лапа в переносе поднимается,
   // задняя сгибает пятку; лопатка выступает над спиной, когда передняя лапа держит вес
-  // ключи по фазе [t, значение] с плавными переходами
-  function keys(t, ks) {
-    for (let i = 1; i < ks.length; i++) if (t <= ks[i][0]) { const [t0, v0] = ks[i - 1], [t1, v1] = ks[i]; return lerp(v0, v1, smooth((t - t0) / (t1 - t0))); }
-    return ks[ks.length - 1][1];
-  }
-  // угол пясти (передние) и плюсны (задние) по фазе, относительно стойки 0.4: в опоре лапа перекатывается
-  // на пальцы и в конце отрывает пятку/запястье; в переносе сустав сгибается и пальцы волочатся позади,
-  // к концу переноса лапа разгибается и ставится на подушечки впереди
-  const GAIT = {
-    F: { st: [[0, 0.45], [0.5, 0.35], [0.85, 0.05], [1, -0.4]], sw: [[0, -0.4], [0.3, -1.55], [0.65, -0.6], [0.88, 0.35], [1, 0.45]] },
-    H: { st: [[0, 0.45], [0.5, 0.35], [0.85, 0.1], [1, -0.3]], sw: [[0, -0.3], [0.35, -0.95], [0.7, 0], [0.9, 0.4], [1, 0.45]] },
-  };
+  // угол пясти (передние) и плюсны (задние) по фазе, относительно стойки 0.4: в опоре лапа равномерно
+  // перекатывается с подушечек на пальцы (сустав уходит вперёд вместе с телом); в переносе сустав плавно
+  // сгибается одной волной, пальцы отстают, и к постановке лапа разгибается — без рывков между кадрами
+  const GAIT = { F: { a0: 0.45, a1: -0.35, flex: 0.85 }, H: { a0: 0.45, a1: -0.3, flex: 0.5 } };
+  const gaitSt = (G, s) => lerp(G.a0, G.a1, s);
+  const gaitSw = (G, s) => lerp(G.a1, G.a0, smooth(s)) - G.flex * Math.sin(Math.PI * s) ** 2;
   function gait(base, ph, offs, stance, A, lift, flex = 1, reach = 0) {
     const q = clone(base);
     q.carp = q.carp || {}; q.meta = q.meta || {};
@@ -329,15 +324,15 @@ const Art = (() => {
       let a;
       if (p < stance) {
         const s = p / stance; f[0] += A * (1 - 2 * s);
-        a = keys(s, G.st);
+        a = gaitSt(G, s);
         if (k === 'FL') q.scap += 0.7 * Math.sin(Math.PI * s);
       } else {
-        // лапа быстро поднимается в начале переноса и плавно опускается к постановке
+        // лапа плавно поднимается и опускается к постановке
         const s = (p - stance) / (1 - stance);
-        f[0] += A * (-1 + 2 * smooth(s)); f[1] -= lift * (fr ? 1.25 : 1) * Math.sin(Math.PI * Math.pow(s, 0.8));
+        f[0] += A * (-1 + 2 * smooth(s)); f[1] -= lift * (fr ? 1.25 : 1) * Math.sin(Math.PI * s);
         // на галопе передние выносятся далеко вперёд перед постановкой, задние выбрасываются назад после толчка
         if (reach) f[0] += fr ? reach * Math.exp(-(((s - 0.72) / 0.22) ** 2)) : -reach * Math.exp(-(((s - 0.18) / 0.2) ** 2));
-        a = keys(s, G.sw);
+        a = gaitSw(G, s);
       }
       (fr ? q.carp : q.meta)[k] = b + (a - 0.4) * flex;
     }
@@ -354,7 +349,7 @@ const Art = (() => {
   // крадётся: низко, лопатки выше спины, голова на уровне спины и вытянута вперёд
   const STALKB = edit(STAND, q => {
     q.H = [-17, -24.5]; q.S = [14, -22]; q.arch = -0.5; q.scap = 1.5; q.neck = 0.25; q.neckLen = 12; q.headTilt = 0.1; q.ears = 0.2;
-    q.feet.FL[0] = 20; q.feet.FR[0] = 16.5; q.feet.HL[0] = -16; q.feet.HR[0] = -19.5; q.meta = { HL: 0.75, HR: 0.75 };
+    q.feet.FL[0] = 15.5; q.feet.FR[0] = 12; q.feet.HL[0] = -16; q.feet.HR[0] = -19.5; q.meta = { HL: 0.75, HR: 0.75 };
     q.tail = { a: 3.25, curl: -0.2, wave: 0, ph: 0, len: 34 };
   });
   const RUNB = edit(STAND, q => { q.neck = 0.5; q.ears = 0.35; q.tail = { a: 3.0, curl: 0.35, wave: 0, ph: 0, len: 34 }; });
@@ -394,10 +389,10 @@ const Art = (() => {
 
   const ANIMS = {
     stand: { n: 8, fps: 3, pose: i => edit(STAND, q => { q.tail.wave = 0.5 * Math.sin(i / 8 * TAU); q.tail.ph = i / 8 * TAU; }) },
-    walk: { n: 16, fps: 20, pose: i => walkPose(i, 16, WALKB, 7.5, 3.5, 0.4) },
-    walkUp: { n: 16, fps: 20, pose: i => walkPose(i, 16, WALKUPB, 7.5, 3.5, 0.4) },
-    stalk: { n: 16, fps: 12, pose: i => walkPose(i, 16, STALKB, 5, 2.4, 0.25) },
-    run: { n: 12, fps: 28, pose: i => runPose(i, 12) },
+    walk: { n: 24, fps: 30, pose: i => walkPose(i, 24, WALKB, 7.2, 3.5, 0.4) },
+    walkUp: { n: 24, fps: 30, pose: i => walkPose(i, 24, WALKUPB, 7.2, 3.5, 0.4) },
+    stalk: { n: 24, fps: 18, pose: i => walkPose(i, 24, STALKB, 4.75, 2.4, 0.25) },
+    run: { n: 18, fps: 42, pose: i => runPose(i, 18) },
     crouch: { n: 4, fps: 8, pose: i => edit(CROUCH, q => { q.H[0] += 1.3 * Math.sin(i / 4 * TAU); q.H[1] += 0.5 * Math.cos(i / 4 * TAU); q.tail.wave = 0.9 * Math.sin(i / 4 * TAU); q.tail.ph = 2; }) },
     pounce: { n: 6, fps: 11, once: true, pose: i => POUNCE[i] },
     bat: { n: 6, fps: 9, strike: 3, pose: i => edit(BAT, q => { q.feet.FL = BAT_PAW[i].slice(); q.over = 'FL'; q.headTilt = 0.05 + 0.08 * Math.sin(i / 6 * TAU); q.tail.wave = 0.6 * Math.sin(i / 6 * TAU); }) },

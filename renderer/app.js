@@ -906,7 +906,9 @@
       try {
         tick(dt);
         active = cats.some(visible) || particles.length || balls.length || drag;
-        fast = !!drag || cats.some(c => ['zoom', 'pounce', 'chase', 'bat', 'flee', 'stalkCat'].includes(c.state)) || balls.some(b => !b.ground || b.vx);
+        fast = !!drag || cats.some(c => ['zoom', 'pounce', 'chase', 'bat', 'flee', 'stalkCat'].includes(c.state)) || balls.some(b => !b.ground || b.vx)
+          // на ходу кадры шага идут чаще 24 в секунду — иначе они держатся то один тик, то два, и шаг выходит рваным
+          || cats.some(c => visible(c) && ['walk', 'walkUp', 'stalk', 'run'].includes(c.anim));
         const sig = signature();
         if (sig !== lastSig) {
           ctx.clearRect(0, 0, W, H);
