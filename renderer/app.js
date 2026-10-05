@@ -10,7 +10,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const smooth = t => t * t * (3 - 2 * t);
   // единиц в секунду (синхронно с шагом анимации), ускорение свободного падения клубка
-  const WALK = 29, STALK = 11.5, RUN = 135, GRAV = 900, REACH = 30, MAX_BALLS = 3;
+  const WALK = 36, STALK = 11.5, RUN = 135, GRAV = 900, REACH = 30, MAX_BALLS = 3;
 
   let DPR = 1, SCALE = 1, k = 1, W = 0, H = 0, groundY = 0;
   let frames = null, sprites = null, ready = false, building = false;
