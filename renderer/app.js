@@ -163,15 +163,15 @@
     const left = a.x <= b.x ? a : b, right = left === a ? b : a;
     const xm = clamp((a.x + b.x) / 2, minX() + 45 * k, maxX() - 45 * k);
     left.faceAfter = 1; right.faceAfter = -1;
-    set(left, 'walk', { target: xm - 48 * k, then: 'boopReady' });
-    set(right, 'walk', { target: xm + 48 * k, then: 'boopReady' });
+    set(left, 'walk', { target: xm - 51.5 * k, then: 'boopReady' });
+    set(right, 'walk', { target: xm + 51.5 * k, then: 'boopReady' });
   }
   // кто лижет — подходит и садится на расстоянии головы; второй ждёт, сидя
   function startAllogroom(c, o) {
     const side = Math.sign(o.x - c.x) || 1;
     c.partner = o; o.partner = c;
     set(o, 'agWait', { dur: 25 });
-    set(c, 'walk', { target: clamp(o.x - side * 60 * k, minX(), maxX()), then: 'agReady' });
+    set(c, 'walk', { target: clamp(o.x - side * 65 * k, minX(), maxX()), then: 'agReady' });
   }
   const FREE = ['idle', 'sit', 'walk', 'groom', 'wait', 'loaf', 'watch'];
   function bored(c) {

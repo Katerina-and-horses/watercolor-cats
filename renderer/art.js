@@ -115,8 +115,12 @@ const Art = (() => {
   const HIP = [-2, 1], ISCH = [-4.6, 1.6]; // тазобедренный сустав от центра таза; седалищный бугор от сустава
   const FY = -1.8; // высота пальцевого сустава стоящей лапы
   // профиль корпуса вдоль позвоночника от таза (t=0) до лопаток (t=1): [t, над осью, под осью]
-  const TORSO = [[0, 6.8, 7.8], [0.15, 6.9, 9.4], [0.4, 6.9, 11.4], [0.65, 7.3, 11.6], [0.85, 8.4, 10.8], [1, 8.8, 9.8]];
-  const HS = 1.08; // масштаб головы
+  const TORSO = [[0, 6.4, 7.8], [0.15, 7.2, 9.4], [0.4, 6.6, 11.4], [0.65, 6.3, 11.6], [0.85, 7.8, 10.8], [1, 8.7, 9.8]];
+  // круп за тазом: [назад от таза, наклон вниз, над осью, под осью] — спина скругляется к корню хвоста, а не обрывается углом
+  const CROUP = [[8.8, 0.66, 1.3, 2.4], [6.9, 0.58, 3, 4.8], [4.5, 0.45, 4.7, 6.4], [2.2, 0.25, 5.8, 7.3]];
+  const TAIL_ROOT = [6.8, 0.6];
+  const HS = 1; // масштаб головы
+  const NECK = 4.5; // шея от плеч до затылка: голова несётся на шее, а не лежит на груди
   const qb = (a, c, b, t) => V((1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * c.y + t * t * b.y);
   const unit = a => { const l = len(a) || 1; return V(a.x / l, a.y / l); };
   const gauss = (t, m, w) => Math.exp(-(((t - m) / w) ** 2));
@@ -146,12 +150,14 @@ const Art = (() => {
 
     // корпус
     const chain = [], scap = P.scap ?? 0.3;
+    const croup = (d, a) => add(add(H, uH, -d * Math.cos(a)), nH, d * Math.sin(a));
+    for (const [d, a, top, bot] of CROUP) chain.push([croup(d, a), flip ? bot : top, flip ? top : bot]);
     for (let i = 0; i <= 14; i++) {
       const t = i / 14, top = prof(t, 1) + scap * 1.5 * gauss(t, 0.9, 0.09), bot = prof(t, 2);
       chain.push([qb(H, C, S, t), flip ? bot : top, flip ? top : bot]);
     }
-    const rumpC = atH(0.2, 1.3), chestC = atS(1.6, 0.8);
-    body.push(limb(chain), ell(rumpC.x, rumpC.y, 6.8, 8, Math.atan2(uH.y, uH.x), 20), ell(chestC.x, chestC.y, 8, 9.6, Math.atan2(uS.y, uS.x), 20));
+    const rumpC = atH(0.8, 1.6), chestC = atS(1.6, 0.8);
+    body.push(limb(chain), ell(rumpC.x, rumpC.y, 5.4, 7.6, Math.atan2(uH.y, uH.x), 20), ell(chestC.x, chestC.y, 8, 9.6, Math.atan2(uS.y, uS.x), 20));
     skel.push([H, C, S]);
     // шерсть: мягкие пряди по краю силуэта — манишка на груди, подшёрсток на животе, щёки, «штаны» на бёдрах
     const tuft = (p, dir, L, w) => { const d = unit(dir), nn = V(-d.y, d.x); return [add(p, nn, w), add(add(p, d, L * 0.55), nn, w * 0.6), add(p, d, L), add(add(p, d, L * 0.5), nn, -w * 0.65), add(p, nn, -w)]; };
@@ -166,12 +172,13 @@ const Art = (() => {
 
     // шея и голова
     const NB = atS(5, -2.5);
-    let Hc = add(NB, dirA(P.neck), P.neckLen);
+    let Hc = add(NB, dirA(P.neck), P.neckLen + NECK);
     if (Hc.y > -9.8 * HS) Hc = V(Hc.x, -9.8 * HS);
     const ht = P.headTilt || 0, hp = (x, y) => add(Hc, rot(V(x * HS, y * HS), ht));
     const hmap = pts => pts.map(p => hp(p.x, p.y));
     const nd = unit(sub(Hc, NB));
-    body.push(limb([[atS(1.2, -0.6), 9.4, 9.6], [lerpV(NB, Hc, 0.45), 8.6, 8.4], [add(Hc, nd, -2), 8, 7.6]]));
+    // шея сужается от плеч к затылку: сверху загривок от холки, снизу горло от подбородка к груди
+    body.push(limb([[atS(0.5, -0.4), 9, 9.8], [lerpV(NB, Hc, 0.28), 7.8, 8.4], [lerpV(NB, Hc, 0.6), 6.6, 7], [add(Hc, nd, -3), 6.2, 6.2]]));
     // голова повёрнута к зрителю в три четверти — так кошачья морда узнаётся: череп, щёки, мордочка, оба уха и оба глаза
     const head = [hmap(ell(0, 0, 11, 9.6, 0, 24)), hmap(ell(1, 3.6, 12.2, 7, 0, 24)), hmap(ell(5.6, 4.6, 5, 3.7, 0, 16))];
     const e = P.ears || 0;
@@ -241,7 +248,7 @@ const Art = (() => {
           ell(kn.x, kn.y, 4.8, 4.8, 0, 12), ell(hock.x, hock.y, 3.3, 3.3, 0, 12));
         // задняя группа мышц бедра: от седалищного бугра к икре — сзади нога идёт плавной линией, а не зигзагом
         const PB = add(atH(HIP[0] + ISCH[0], HIP[1] + ISCH[1]), off), calf = add(lerpV(kn, hock, 0.3), V(-sd.y, sd.x), 4.4 * sg), heel = add(lerpV(kn, hock, 0.88), V(-sd.y, sd.x), 3 * sg);
-        if (!flip && (calf.x - kn.x) * uH.x + (calf.y - kn.y) * uH.y < 0) parts.push([HJ, PB, add(lerpV(PB, heel, 0.35), uH, -1), add(lerpV(PB, heel, 0.7), uH, -0.4), heel, lerpV(kn, hock, 0.6), kn]);
+        if (!flip && (calf.x - kn.x) * uH.x + (calf.y - kn.y) * uH.y < 0) parts.push([HJ, PB, add(lerpV(PB, heel, 0.35), uH, -0.7), add(lerpV(PB, heel, 0.7), uH, 1), heel, lerpV(kn, hock, 0.6), kn]);
         const pw = pawAt(foot, mv, 4.3);
         paw = pw.poly;
         legs[k] = { paw: pw.c, foot, knee: kn, hock, hj: HJ };
@@ -256,7 +263,7 @@ const Art = (() => {
 
     // хвост: от корня над седалищными буграми, сужается к кончику, не уходит под землю
     const tail = [];
-    let tp = atH(-4.8, -0.8), th = P.tail.a;
+    let tp = croup(TAIL_ROOT[0], TAIL_ROOT[1]), th = P.tail.a;
     const TN = 14, TL = P.tail.len || 38;
     tail.push(tp);
     for (let i = 1; i <= TN; i++) {
@@ -304,8 +311,8 @@ const Art = (() => {
   const LOAF = {
     H: [-14, -10], S: [11, -11.2], arch: 1.6, scap: 0.2, flip: 0,
     feet: { FL: [18, FY], FR: [21, FY], HL: [-1, FY], HR: [2, FY] }, meta: { HL: 1.5, HR: 1.5 }, carp: { FL: 1.45, FR: 1.45 },
-    neck: 1.0, neckLen: 11.5, headTilt: 0.04, ears: 0.05, tongue: 0,
-    tail: TAIL(3.8, 2.4), tailFront: 1,
+    neck: 1.0, neckLen: 9.5, headTilt: 0.04, ears: 0.05, tongue: 0,
+    tail: TAIL(4.5, 2), tailFront: 1,
   };
   // спит клубком: спина круглым куполом, голова уткнута вниз к лапам, хвост укрывает нос
   const CURL = {
@@ -468,13 +475,13 @@ const Art = (() => {
   ];
   const BAT_PAW = [[20, FY], [24, -14], [29, -18], [34, -8], [32, -2.4], [26, -5]];
   // умывание передней лапой: лизнуть подушечку (голова к лапе) и провести лапой по уху и щеке
-  const GROOM_PAW = [[22, -27], [22, -25.5], [22, -27], [22, -25.5], [22, -27], [24, -35], [20, -42], [14, -45], [18, -36], [22, -28]];
+  const GROOM_PAW = [[25.5, -30], [25.5, -28.5], [25.5, -30], [25.5, -28.5], [25.5, -30], [27.5, -38], [23.5, -45], [17.5, -48], [21.5, -39], [25.5, -31]];
   // «виолончель»: сидя на бедре, задняя лапа задрана вверх, голова к животу и внутренней стороне бедра
   const GROOM_LEG = edit(SIT, q => {
     q.H = [-7, -9.4]; q.S = [-2, -27]; q.arch = 4.5;
     q.feet.HL = [16, -52]; q.meta.HL = Math.PI; q.feet.HR = [5, FY]; q.over = 'HL';
     q.feet.FL = [9, FY]; q.feet.FR = [12, FY];
-    q.neck = -0.25; q.neckLen = 10.5; q.headTilt = -0.75; q.ears = 0.15; q.tongue = 1;
+    q.neck = -0.25; q.neckLen = 7.5; q.headTilt = -0.75; q.ears = 0.15; q.tongue = 1;
     q.tail = TAIL(3.6, 0.4); q.tailFront = 0;
   });
 
