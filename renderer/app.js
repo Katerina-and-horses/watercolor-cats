@@ -163,15 +163,15 @@
     const left = a.x <= b.x ? a : b, right = left === a ? b : a;
     const xm = clamp((a.x + b.x) / 2, minX() + 45 * k, maxX() - 45 * k);
     left.faceAfter = 1; right.faceAfter = -1;
-    set(left, 'walk', { target: xm - 47 * k, then: 'boopReady' });
-    set(right, 'walk', { target: xm + 47 * k, then: 'boopReady' });
+    set(left, 'walk', { target: xm - 48 * k, then: 'boopReady' });
+    set(right, 'walk', { target: xm + 48 * k, then: 'boopReady' });
   }
   // кто лижет — подходит и садится на расстоянии головы; второй ждёт, сидя
   function startAllogroom(c, o) {
     const side = Math.sign(o.x - c.x) || 1;
     c.partner = o; o.partner = c;
     set(o, 'agWait', { dur: 25 });
-    set(c, 'walk', { target: clamp(o.x - side * 56 * k, minX(), maxX()), then: 'agReady' });
+    set(c, 'walk', { target: clamp(o.x - side * 60 * k, minX(), maxX()), then: 'agReady' });
   }
   const FREE = ['idle', 'sit', 'walk', 'groom', 'wait', 'loaf', 'watch'];
   function bored(c) {
@@ -772,9 +772,7 @@
     }
     const excited = ['chase', 'crouch', 'pounce', 'bat', 'watch', 'notice', 'stalkCat', 'crouchCat', 'flee', 'roll'].includes(c.state);
     const dil = excited ? 1 : night() ? 0.7 : 0.25;
-    // кошка в профиль: виден один глаз, зрачок смещён вперёд по взгляду
-    const [rx, ry] = a.eyeR;
-    for (const p of [a.eyeN]) {
+    for (const [p, rx, ry] of a.eyes) {
       g.save();
       g.translate(p.x, p.y); g.rotate(a.eyeAng);
       if (st === 2) {
@@ -782,9 +780,9 @@
         g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); g.fill();
         g.strokeStyle = Art.hexA(look.ink, 0.8); g.lineWidth = 0.55; g.stroke();
         g.fillStyle = '#1d1512';
-        g.beginPath(); g.ellipse(rx * 0.15 + lx * rx * 0.3, ly * ry * 0.25, lerp(0.42, rx * 0.68, dil), ry * 0.88, 0, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.ellipse(lx * rx * 0.35, ly * ry * 0.3, lerp(0.5, rx * 0.72, dil), ry * 0.9, 0, 0, Math.PI * 2); g.fill();
         g.fillStyle = 'rgba(255,255,255,0.9)';
-        g.beginPath(); g.arc(rx * 0.3 + lx * 0.3, -ry * 0.4, 0.55, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.arc(rx * 0.25 + lx * 0.3, -ry * 0.4, 0.6, 0, Math.PI * 2); g.fill();
       } else {
         g.strokeStyle = look.ink; g.lineWidth = 0.75; g.lineCap = 'round';
         g.beginPath();

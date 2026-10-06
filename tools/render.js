@@ -21,13 +21,12 @@ const cw = Math.ceil(SPR.W * s), ch = Math.ceil(SPR.H * s), rows = Math.ceil(lis
 const sheet = createCanvas(cols * cw, rows * ch), g = sheet.getContext('2d');
 g.fillStyle = '#f4efe6'; g.fillRect(0, 0, sheet.width, sheet.height);
 function eyes(g, look, a, closed) {
-  for (const [p, rx, ry] of [[a.eyeN, a.eyeRN || 2.5, 2.2], [a.eyeF, a.eyeRF || 2.15, 2.05]]) {
-    if (!p) continue;
+  for (const [p, rx, ry] of a.eyes) {
     g.save(); g.translate(p.x, p.y); g.rotate(a.eyeAng || 0);
     if (!closed) {
       g.fillStyle = look.iris; g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, 7); g.fill();
       g.strokeStyle = Art.hexA(look.ink, 0.8); g.lineWidth = 0.55; g.stroke();
-      g.fillStyle = '#1d1512'; g.beginPath(); g.ellipse(rx * 0.12, 0, rx * 0.35, ry * 0.9, 0, 0, 7); g.fill();
+      g.fillStyle = '#1d1512'; g.beginPath(); g.ellipse(rx * 0.1, 0, rx * 0.3, ry * 0.9, 0, 0, 7); g.fill();
       g.fillStyle = 'rgba(255,255,255,0.9)'; g.beginPath(); g.arc(rx * 0.3, -ry * 0.4, 0.6, 0, 7); g.fill();
     } else {
       g.strokeStyle = look.ink; g.lineWidth = 0.75; g.lineCap = 'round';

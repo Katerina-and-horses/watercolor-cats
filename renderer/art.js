@@ -115,13 +115,8 @@ const Art = (() => {
   const HIP = [-2, 1], ISCH = [-4.6, 1.6]; // тазобедренный сустав от центра таза; седалищный бугор от сустава
   const FY = -1.8; // высота пальцевого сустава стоящей лапы
   // профиль корпуса вдоль позвоночника от таза (t=0) до лопаток (t=1): [t, над осью, под осью]
-  const TORSO = [[0, 5, 7.8], [0.15, 6.3, 9.4], [0.4, 6.9, 11.4], [0.65, 7.3, 11.6], [0.85, 8.4, 10.8], [1, 8.8, 9.8]];
-  // профиль головы от затылка по часовой: темя, лоб, переносица, мочка носа, губа, подбородок, щека
-  const HEAD = [[-6.8, 0.5], [-6.4, -3], [-4.2, -5.6], [-0.6, -6.6], [2.8, -6.1], [5, -4.7], [6.2, -3], [6.7, -1.6], [7.9, -1], [9, -0.4],
-    [9.5, 0.5], [9.1, 1.5], [8.6, 2.2], [8.8, 3.1], [8, 4.3], [6.2, 5], [3.4, 5.8], [0, 6.4], [-3.6, 5.8], [-6.2, 3.4]];
-  // ухо: основание спереди и сзади, кончик; прижимается назад-вниз
-  const EAR = { b1: [1.2, -5.6], b2: [-5, -4], tip: [-2.6, -11.6], fold: [-4.8, 5.6] };
-  const HS = 1.42; // голова чуть крупнее строгих пропорций: шерсть и щёки
+  const TORSO = [[0, 6.3, 7.8], [0.15, 6.6, 9.4], [0.4, 6.9, 11.4], [0.65, 7.3, 11.6], [0.85, 8.4, 10.8], [1, 8.8, 9.8]];
+  const HS = 1.08; // масштаб головы
   const qb = (a, c, b, t) => V((1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * c.y + t * t * b.y);
   const unit = a => { const l = len(a) || 1; return V(a.x / l, a.y / l); };
   const gauss = (t, m, w) => Math.exp(-(((t - m) / w) ** 2));
@@ -155,8 +150,8 @@ const Art = (() => {
       const t = i / 14, top = prof(t, 1) + scap * 1.5 * gauss(t, 0.9, 0.09), bot = prof(t, 2);
       chain.push([qb(H, C, S, t), flip ? bot : top, flip ? top : bot]);
     }
-    const rumpC = atH(0.4, 2.2), chestC = atS(1.6, 0.8);
-    body.push(limb(chain), ell(rumpC.x, rumpC.y, 6.6, 7, Math.atan2(uH.y, uH.x), 20), ell(chestC.x, chestC.y, 8, 9.6, Math.atan2(uS.y, uS.x), 20));
+    const rumpC = atH(0.2, 1.3), chestC = atS(1.6, 0.8);
+    body.push(limb(chain), ell(rumpC.x, rumpC.y, 6.8, 7.5, Math.atan2(uH.y, uH.x), 20), ell(chestC.x, chestC.y, 8, 9.6, Math.atan2(uS.y, uS.x), 20));
     skel.push([H, C, S]);
     // шерсть: мягкие пряди по краю силуэта — манишка на груди, подшёрсток на животе, щёки, «штаны» на бёдрах
     const tuft = (p, dir, L, w) => { const d = unit(dir), nn = V(-d.y, d.x); return [add(p, nn, w), add(add(p, d, L * 0.55), nn, w * 0.6), add(p, d, L), add(add(p, d, L * 0.5), nn, -w * 0.65), add(p, nn, -w)]; };
@@ -172,29 +167,27 @@ const Art = (() => {
     // шея и голова
     const NB = atS(5, -2.5);
     let Hc = add(NB, dirA(P.neck), P.neckLen);
-    if (Hc.y > (flip ? -10.5 : -6.2)) Hc = V(Hc.x, flip ? -10.5 : -6.2);
-    const ht = P.headTilt || 0, hp = (x, y) => add(Hc, rot(V(x * HS, y * sg * HS), ht));
+    if (Hc.y > -9.8 * HS) Hc = V(Hc.x, -9.8 * HS);
+    const ht = P.headTilt || 0, hp = (x, y) => add(Hc, rot(V(x * HS, y * HS), ht));
+    const hmap = pts => pts.map(p => hp(p.x, p.y));
     const nd = unit(sub(Hc, NB));
-    body.push(limb([[atS(1.2, -0.6), 9.4, 9.6], [lerpV(NB, Hc, 0.45), 8.2, 8], [add(Hc, nd, -1.5), 7.4, 7]]));
-    const head = HEAD.map(([x, y]) => hp(x, y));
+    body.push(limb([[atS(1.2, -0.6), 9.4, 9.6], [lerpV(NB, Hc, 0.45), 8.6, 8.4], [add(Hc, nd, -2), 8, 7.6]]));
+    // голова повёрнута к зрителю в три четверти — так кошачья морда узнаётся: череп, щёки, мордочка, оба уха и оба глаза
+    const head = [hmap(ell(0, 0, 11, 9.6, 0, 24)), hmap(ell(1, 3.6, 12.2, 7, 0, 24)), hmap(ell(5.6, 4.6, 5, 3.7, 0, 16))];
     const e = P.ears || 0;
-    const ear = (dx, dy) => {
-      const b1 = V(EAR.b1[0] + dx, EAR.b1[1] + dy), b2 = V(EAR.b2[0] + dx, EAR.b2[1] + dy);
-      const tip = V(EAR.tip[0] + dx + EAR.fold[0] * e, EAR.tip[1] + dy + EAR.fold[1] * e);
-      // передний край почти прямой, задний — выпуклый
-      const fr = add(lerpV(b1, tip, 0.5), V(0.5, 0.2)), bk = add(lerpV(b2, tip, 0.45), V(-1.1, -0.6));
-      return { b1, b2, tip, poly: [V(b1.x + 0.6, b1.y + 2), b1, fr, tip, tip, bk, b2, V(b2.x + 0.6, b2.y + 2.2)].map(p => hp(p.x, p.y)) };
-    };
-    const earN = ear(0, 0), earF = ear(4.2, 0.5);
-    body.push(head, earN.poly);
-    for (const [x, y] of [[1.6, 6], [-1.4, 6.2], [-4.2, 5.4]]) body.push(tuft(hp(x, y - 0.6), sub(hp(x - 1.3, y + 2), hp(x, y)), 2.6 * HS, 1.5 * HS));
-    far.push(earF.poly);
-    // раковина ближнего уха открыта вперёд-вбок: розовая середина, у дальнего видна внутренняя сторона
-    for (const [E, k1, k2] of [[earN, 0.62, 0.3], [earF, 0.7, 0.5]]) {
-      const c = V((E.b1.x * 1.4 + E.b2.x * 0.6 + E.tip.x) / 3, (E.b1.y + E.b2.y + E.tip.y) / 3 + 0.6);
-      inner.push([lerpV(c, E.b1, k1), lerpV(c, E.tip, k1), lerpV(c, E.tip, k1), lerpV(c, E.b2, k2)].map(p => hp(p.x, p.y)));
+    const ears = [[[-10.5, -2.5], [-2, -9.2], [-9.5, -17.5], [-5, 6.5]], [[0.5, -9.8], [9.5, -4.5], [6.8, -17.8], [4.5, 7]]].map(([b1, b2, tip, dt]) =>
+      ({ b1: P2(b1), b2: P2(b2), t: V(tip[0] + dt[0] * e, tip[1] + dt[1] * e) }));
+    for (const E of ears) {
+      const out = add(lerpV(E.b1, E.t, 0.5), V(-(E.t.y - E.b1.y), E.t.x - E.b1.x), -0.06);
+      head.push(hmap([E.b1, out, E.t, E.t, lerpV(E.t, E.b2, 0.5), E.b2, lerpV(E.b2, E.b1, 0.5)]));
     }
-    A.innerEar = inner[0]; A.innerEarF = inner[1];
+    // пушистые щёки
+    for (const [x, y, dx, dy] of [[-9.6, 5, -1, 0.5], [-7.4, 8, -0.7, 1], [11.6, 6.2, 1, 0.6]]) head.push(tuft(hp(x, y), sub(hp(x + dx, y + dy), hp(x, y)), 3 * HS, 2 * HS));
+    body.push(...head);
+    A.innerEars = ears.map(E => {
+      const c = V((E.b1.x + E.b2.x + E.t.x) / 3, (E.b1.y + E.b2.y + E.t.y) / 3 + 0.8);
+      return hmap([E.b1, E.t, E.t, E.b2].map(q => lerpV(c, q, 0.58)));
+    });
 
     // пальцы — продолжение пясти/плюсны: на земле лежат плоско, в воздухе следуют за лапой
     const pawAt = (foot, up, rx) => {
@@ -282,10 +275,11 @@ const Art = (() => {
     if (!flip) for (const list of [body, far, legsN]) for (const poly of list) for (const p of poly) if (p.y > -0.1) p.y = -0.1;
 
     A.head = Hc;
-    A.eyeN = hp(3.7, -1.5); A.eyeF = null; A.eyeAng = -ht * sg; A.eyeR = [1.2 * HS, 1.55 * HS];
-    A.mouth = hp(8.8, 3);
+    A.eyeN = hp(-1.4, -0.6); A.eyeF = hp(6.4, -1); A.eyeAng = -ht;
+    A.eyes = [[A.eyeN, 2.5 * HS, 2.2 * HS], [A.eyeF, 2.15 * HS, 2.05 * HS]];
+    A.mouth = hp(6.3, 5.2);
     A.paw = legs.FL.paw;
-    A.top = Math.min(...head.map(p => p.y), ...earN.poly.map(p => p.y), ...chain.map(c => c[0].y - c[1]));
+    A.top = Math.min(...head.flat().map(p => p.y), ...chain.map(c => c[0].y - c[1]));
     A.body = lerpV(H, S, 0.5);
     return { H, S, C, u, n: V(n.x * sg, n.y * sg), uS, nS, ang: Math.atan2(u.y, u.x), hp, body, far, legsN, paws, tail, tailParts, legs, muscles, skel, anchors: A, flip, sg };
   }
@@ -331,7 +325,7 @@ const Art = (() => {
   const ROLL = {
     H: [-18, -8.6], S: [12, -9.2], arch: -1, scap: 0, flip: 1,
     feet: { FL: [22, -27], FR: [18, -25], HL: [-10, -28], HR: [-14, -26] }, meta: { HL: 2.7, HR: 2.7 }, carp: { FL: null, FR: null },
-    neck: 0.3, neckLen: 12, headTilt: 0.35, ears: 0.9, tongue: 0,
+    neck: 0.3, neckLen: 12, headTilt: 0.75, ears: 0.15, tongue: 0,
     tail: TAIL(3.2, 0.4), tailFront: 0,
   };
   // припала к земле перед прыжком: лопатки выше спины, лапы под собой
@@ -656,8 +650,6 @@ const Art = (() => {
     // дальние лапы и дальнее ухо
     layer(g.far, look.far, c => {
       if (look.tabby) { c.filter = `blur(${0.5 * s}px)`; legStripes(c, 'FR'); legStripes(c, 'HR'); c.filter = 'none'; }
-      c.filter = `blur(${0.5 * s}px)`; c.fillStyle = hexA(look.inner, 0.6);
-      c.beginPath(); trace(c, A.innerEarF); c.fill(); c.filter = 'none';
       whitePaws(c, g.paws.far);
     }, 0.5, 0.35);
 
@@ -680,8 +672,8 @@ const Art = (() => {
           const back = V(d.y * sg, -d.x * sg), top = add(p0, back, 8);
           stripe(c, top, add(add(top, back, -(10 + (i % 2) * 3.5)), d, -2.4), 2.2, look.stripe, 0.55);
         }
-        for (const [a, b] of [[[-0.6, -6], [1, -3.6]], [[1.8, -5.6], [3, -3.6]], [[-3.2, -5.6], [-1.6, -3.4]]]) stripe(c, hp(...a), hp(...b), 1.2, look.stripe, 0.5);
-        for (const [a, b] of [[[1.6, -0.4], [-3.6, 0.8]], [[2, 1.8], [-3.2, 3.6]]]) stripe(c, hp(...a), hp(...b), 1.1, look.stripe, 0.45);
+        for (const [a, b] of [[[-1, -9], [-0.6, -4.8]], [[2.6, -9.4], [2.8, -5.2]], [[-4.2, -8.3], [-3.4, -4.9]], [[5.8, -8.5], [5.4, -5.4]]]) stripe(c, hp(...a), hp(...b), 1.3, look.stripe, 0.55);
+        for (const [a, b] of [[[-6, 1.6], [-10.5, 0.6]], [[-5.6, 4], [-10.5, 4.6]]]) stripe(c, hp(...a), hp(...b), 1.2, look.stripe, 0.5);
         if (!ov.includes('HL')) legStripes(c, 'HL');
         if (!ov.includes('FL')) legStripes(c, 'FL');
         c.filter = 'none';
@@ -690,14 +682,14 @@ const Art = (() => {
       // белое: манишка на груди (и живот, когда на спине), мордочка с подбородком
       c.filter = `blur(${1.6 * s}px)`;
       c.fillStyle = `rgba(255,252,246,${0.9 * look.white.chest})`;
-      const ch = add(add(Ss, g.uS, 7.5), g.nS, 2.5);
-      c.beginPath(); c.ellipse(ch.x, ch.y, 4, 7.5, Math.atan2(g.uS.y, g.uS.x), 0, TAU); c.fill();
+      const thr = hp(1.5, 9), cp = add(add(Ss, g.uS, 8.2), g.nS, 1.5);
+      c.beginPath(); trace(c, capsule(thr, 4.4, cp, 3.2, 6)); c.fill();
       if (g.flip) { const bl = add(lerpV(Hh, Ss, 0.45), g.n, 6); c.beginPath(); c.ellipse(bl.x, bl.y, 13, 4.5, g.ang, 0, TAU); c.fill(); }
       c.filter = `blur(${0.9 * s}px)`;
       c.fillStyle = `rgba(255,252,246,${0.92 * look.white.muzzle})`;
-      const mz = hp(7.6, 2), mz2 = hp(6.6, 3.8), ha = -(P.headTilt || 0) * sg;
-      c.beginPath(); c.ellipse(mz.x, mz.y, 2.9, 2.5, ha, 0, TAU); c.fill();
-      c.beginPath(); c.ellipse(mz2.x, mz2.y, 3.4, 1.9, ha, 0, TAU); c.fill();
+      const mz = hp(5.6, 5), mz2 = hp(2.5, 6.4), ha = -(P.headTilt || 0);
+      c.beginPath(); c.ellipse(mz.x, mz.y, 5.2 * HS, 3.6 * HS, ha, 0, TAU); c.fill();
+      c.beginPath(); c.ellipse(mz2.x, mz2.y, 5.4 * HS, 3 * HS, ha, 0, TAU); c.fill();
       c.filter = 'none';
       whitePaws(c, g.paws.near.filter((_, i) => !ov.includes(i ? 'HL' : 'FL')));
     }, 0.55, 0.55);
@@ -710,27 +702,33 @@ const Art = (() => {
     }, 0.5, 0.45);
     if (P.tailFront) tailLayer();
 
-    // детали: ухо внутри, нос, рот, язычок, усы
+    // детали: уши внутри, нос, рот, язычок, усы
     setT(o);
     o.save();
     o.filter = `blur(${0.5 * s}px)`;
     o.fillStyle = hexA(look.inner, 0.75);
-    o.beginPath(); trace(o, A.innerEar); o.fill();
+    for (const p of A.innerEars) { o.beginPath(); trace(o, p); o.fill(); }
     o.restore();
     if (P.tongue > 0.5) {
-      const tg = hp(9.2, 3.3);
+      const tg = hp(6.4, 6.3);
       o.fillStyle = '#e07f8a';
-      o.beginPath(); o.ellipse(tg.x, tg.y, 1.5, 1, -(P.headTilt || 0) * g.sg + 0.5, 0, TAU); o.fill();
+      o.beginPath(); o.ellipse(tg.x, tg.y, 1.5 * HS, 1.15 * HS, -(P.headTilt || 0), 0, TAU); o.fill();
     }
     o.fillStyle = look.nose;
-    o.beginPath(); trace(o, [hp(8.7, -0.3), hp(9.6, 0.4), hp(9.2, 1.4), hp(8.5, 1)]); o.fill();
+    o.beginPath(); trace(o, [hp(4.8, 1.6), hp(7.8, 1.6), hp(6.3, 3.3)]); o.fill();
     o.strokeStyle = hexA(look.ink, 0.6); o.lineWidth = 0.7; o.lineCap = 'round';
-    // рот: от мочки носа вниз и назад к уголку
-    const m0 = hp(9, 1.5), m1 = hp(8.7, 2.9), m2 = hp(7.5, 3.6), m3 = hp(6.3, 3.1);
-    o.beginPath(); o.moveTo(m0.x, m0.y); o.lineTo(m1.x, m1.y); o.quadraticCurveTo(m2.x, m2.y, m3.x, m3.y); o.stroke();
-    o.strokeStyle = hexA(look.ink, 0.4); o.lineWidth = 0.4;
-    for (const [a, b, c] of [[[7.8, 1.9], [11.5, 0.9], [15, 1]], [[7.7, 2.4], [11.5, 3], [14.8, 4.4]], [[7.4, 2.9], [10, 4.8], [12.6, 7]], [[7, 2.7], [3.6, 3.8], [0.4, 6.2]]]) {
-      const [A1, B1, C1] = [a, b, c].map(q => { const p = hp(...q); return g.flip ? p : V(p.x, Math.min(p.y, -0.4)); });
+    o.beginPath();
+    const n0 = hp(6.3, 3.2), n1 = hp(6.3, 4.4);
+    o.moveTo(n0.x, n0.y); o.lineTo(n1.x, n1.y);
+    for (const [qq, ee] of [[[5.4, 5.4], [4.4, 4.7]], [[7.2, 5.4], [8.2, 4.7]]]) {
+      const q1 = hp(...qq), e1 = hp(...ee);
+      o.moveTo(n1.x, n1.y); o.quadraticCurveTo(q1.x, q1.y, e1.x, e1.y);
+    }
+    o.stroke();
+    o.strokeStyle = hexA(look.ink, 0.42); o.lineWidth = 0.42;
+    for (const [a, b, c] of [[[9, 4.2], [14, 2.6], [19, 2.4]], [[9.2, 5], [14.5, 5], [19.5, 6]], [[8.8, 5.8], [13.5, 7.4], [18, 9.2]],
+      [[-6, 4.2], [-11, 3.4], [-16, 3.6]], [[-6, 5.2], [-11, 5.8], [-15.5, 7]]]) {
+      const A1 = hp(...a), B1 = hp(...b), C1 = hp(...c);
       o.beginPath(); o.moveTo(A1.x, A1.y); o.quadraticCurveTo(B1.x, B1.y, C1.x, C1.y); o.stroke();
     }
 
