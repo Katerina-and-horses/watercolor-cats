@@ -115,11 +115,10 @@ const Art = (() => {
   const HIP = [-2, 1], ISCH = [-4.6, 1.6]; // тазобедренный сустав от центра таза; седалищный бугор от сустава
   const FY = -1.8; // высота пальцевого сустава стоящей лапы
   // профиль корпуса вдоль позвоночника от таза (t=0) до лопаток (t=1): [t, над осью, под осью]
-  const TORSO = [[0, 6.4, 7.4], [0.15, 7, 8.6], [0.4, 6.6, 10.8], [0.65, 6.3, 11.6], [0.85, 7.8, 10.8], [1, 8.7, 9.8]];
-  // круп за тазом: [назад от таза, наклон вниз, над осью, под осью] — спина полого сходит к хвосту; корень хвоста
-  // (TAIL_ROOT: назад, наклон, вверх от оси крупа) лежит вровень с линией спины, хвост её продолжает, ягодица — под хвостом
-  const CROUP = [[8.6, 0.36, 5.2, 4.6], [6.6, 0.3, 5.8, 5.8], [4.4, 0.2, 6, 6.6], [2.2, 0.1, 6.2, 7.2]];
-  const TAIL_ROOT = [7.6, 0.33, 1.5];
+  const TORSO = [[0, 6.4, 7.8], [0.15, 7.2, 9.4], [0.4, 6.6, 11.4], [0.65, 6.3, 11.6], [0.85, 7.8, 10.8], [1, 8.7, 9.8]];
+  // круп за тазом: [назад от таза, наклон вниз, над осью, под осью] — спина скругляется к корню хвоста, а не обрывается углом
+  const CROUP = [[8.8, 0.66, 1.3, 2.4], [6.9, 0.58, 3, 4.8], [4.5, 0.45, 4.7, 6.4], [2.2, 0.25, 5.8, 7.3]];
+  const TAIL_ROOT = [6.8, 0.6];
   const HS = 1; // масштаб головы
   const NECK = 4.5; // шея от плеч до затылка: голова несётся на шее, а не лежит на груди
   const qb = (a, c, b, t) => V((1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * c.y + t * t * b.y);
@@ -151,7 +150,7 @@ const Art = (() => {
 
     // корпус
     const chain = [], scap = P.scap ?? 0.3;
-    const croup = (d, a, up = 0) => add(add(H, uH, -d * Math.cos(a)), nH, d * Math.sin(a) - up);
+    const croup = (d, a) => add(add(H, uH, -d * Math.cos(a)), nH, d * Math.sin(a));
     for (const [d, a, top, bot] of CROUP) chain.push([croup(d, a), flip ? bot : top, flip ? top : bot]);
     for (let i = 0; i <= 14; i++) {
       const t = i / 14, top = prof(t, 1) + scap * 1.5 * gauss(t, 0.9, 0.09), bot = prof(t, 2);
@@ -249,7 +248,7 @@ const Art = (() => {
           ell(kn.x, kn.y, 4.8, 4.8, 0, 12), ell(hock.x, hock.y, 3.3, 3.3, 0, 12));
         // задняя группа мышц бедра: от седалищного бугра к икре — сзади нога идёт плавной линией, а не зигзагом
         const PB = add(atH(HIP[0] + ISCH[0], HIP[1] + ISCH[1]), off), calf = add(lerpV(kn, hock, 0.3), V(-sd.y, sd.x), 4.4 * sg), heel = add(lerpV(kn, hock, 0.88), V(-sd.y, sd.x), 3 * sg);
-        if (!flip && (calf.x - kn.x) * uH.x + (calf.y - kn.y) * uH.y < 0) parts.push([HJ, PB, add(lerpV(PB, heel, 0.35), uH, -0.3), add(lerpV(PB, heel, 0.7), uH, 2.2), heel, lerpV(kn, hock, 0.6), kn]);
+        if (!flip && (calf.x - kn.x) * uH.x + (calf.y - kn.y) * uH.y < 0) parts.push([HJ, PB, add(lerpV(PB, heel, 0.35), uH, -0.7), add(lerpV(PB, heel, 0.7), uH, 1), heel, lerpV(kn, hock, 0.6), kn]);
         const pw = pawAt(foot, mv, 4.3);
         paw = pw.poly;
         legs[k] = { paw: pw.c, foot, knee: kn, hock, hj: HJ };
@@ -264,7 +263,7 @@ const Art = (() => {
 
     // хвост: от корня над седалищными буграми, сужается к кончику, не уходит под землю
     const tail = [];
-    let tp = croup(...TAIL_ROOT), th = P.tail.a;
+    let tp = croup(TAIL_ROOT[0], TAIL_ROOT[1]), th = P.tail.a;
     const TN = 14, TL = P.tail.len || 38;
     tail.push(tp);
     for (let i = 1; i <= TN; i++) {
