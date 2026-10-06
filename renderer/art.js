@@ -112,7 +112,7 @@ const Art = (() => {
   const SCAP = 10, HUM = 14.2, RAD = 13.1, CARP = 4.7, FEMUR = 15, TIBIA = 16, META = 9.7;
   const FAR = [1.8, -0.8]; // дальние лапы чуть смещены
   const SCAP_TOP = [3, -6.5], SCAP_A = 1.1, SCAP_SWING = 0.4; // лопатка: ~63° к оси груди, качается на ±23°
-  const HIP = [-1, -0.5], ISCH = [-7.5, 1.5]; // тазобедренный сустав от центра таза; седалищный бугор от сустава
+  const HIP = [-2.5, -0.5], ISCH = [-5, 2]; // тазобедренный сустав от центра таза; седалищный бугор от сустава
   const FY = -1.8; // высота пальцевого сустава стоящей лапы
   // профиль корпуса вдоль позвоночника от таза (t=0) до лопаток (t=1): [t, над осью, под осью]
   const TORSO = [[0, 7, 7.8], [0.15, 6.8, 9.4], [0.4, 6.9, 11.4], [0.65, 7.3, 11.6], [0.85, 8.4, 10.8], [1, 8.8, 9.8]];
@@ -155,8 +155,8 @@ const Art = (() => {
       const t = i / 14, top = prof(t, 1) + scap * 1.5 * gauss(t, 0.9, 0.09), bot = prof(t, 2);
       chain.push([qb(H, C, S, t), flip ? bot : top, flip ? top : bot]);
     }
-    const rumpC = atH(-2.6, 1.2), chestC = atS(1.6, 0.8);
-    body.push(limb(chain), ell(rumpC.x, rumpC.y, 8.4, 8.6, Math.atan2(uH.y, uH.x), 20), ell(chestC.x, chestC.y, 8, 9.6, Math.atan2(uS.y, uS.x), 20));
+    const rumpC = atH(-0.6, 0.8), chestC = atS(1.6, 0.8);
+    body.push(limb(chain), ell(rumpC.x, rumpC.y, 7.4, 8.2, Math.atan2(uH.y, uH.x), 20), ell(chestC.x, chestC.y, 8, 9.6, Math.atan2(uS.y, uS.x), 20));
     skel.push([H, C, S]);
     // шерсть: мягкие пряди по краю силуэта — манишка на груди, подшёрсток на животе, щёки, «штаны» на бёдрах
     const tuft = (p, dir, L, w) => { const d = unit(dir), nn = V(-d.y, d.x); return [add(p, nn, w), add(add(p, d, L * 0.55), nn, w * 0.6), add(p, d, L), add(add(p, d, L * 0.5), nn, -w * 0.65), add(p, nn, -w)]; };
@@ -248,7 +248,7 @@ const Art = (() => {
           ell(kn.x, kn.y, 4.8, 4.8, 0, 12), ell(hock.x, hock.y, 3.3, 3.3, 0, 12));
         // задняя группа мышц бедра: от седалищного бугра к икре — сзади нога идёт плавной линией, а не зигзагом
         const PB = add(atH(HIP[0] + ISCH[0], HIP[1] + ISCH[1]), off), calf = add(lerpV(kn, hock, 0.3), V(-sd.y, sd.x), 4.4 * sg);
-        if (!flip && (calf.x - kn.x) * uH.x + (calf.y - kn.y) * uH.y < 0) parts.push([HJ, PB, add(lerpV(PB, calf, 0.5), uH, -2.6), calf, kn]);
+        if (!flip && (calf.x - kn.x) * uH.x + (calf.y - kn.y) * uH.y < 0) parts.push([HJ, PB, add(lerpV(PB, calf, 0.5), uH, -1.6), calf, kn]);
         if (!flip && (calf.x - kn.x) * uH.x + (calf.y - kn.y) * uH.y < 0) for (const t of [0.12, 0.38, 0.64, 0.9])
           parts.push(tuft(add(lerpV(PB, calf, t), uH, 0.6), add(V(-uH.x * 0.7, -uH.y * 0.7), nH, 0.8), 3.8, 2.6));
         const pw = pawAt(foot, mv, 4.3);
@@ -265,7 +265,7 @@ const Art = (() => {
 
     // хвост: от корня над седалищными буграми, сужается к кончику, не уходит под землю
     const tail = [];
-    let tp = atH(-7, -1.6), th = P.tail.a;
+    let tp = atH(-5.6, -2.4), th = P.tail.a;
     const TN = 14, TL = P.tail.len || 38;
     tail.push(tp);
     for (let i = 1; i <= TN; i++) {
@@ -427,19 +427,43 @@ const Art = (() => {
     q.meta = { HL: 0.8, HR: 0.8 }; q.carp = { FL: 0.6, FR: 0.6 };
     q.tail = TAIL(3.25, -0.2);
   });
-  const RUNB = edit(STAND, q => { q.feet.FL[0] = 18; q.H[1] = -31.5; q.S[1] = -30.5; q.neck = 0.35; q.headTilt = 0; q.ears = 0.35; q.tail = TAIL(3.0, 0.35); });
-  // ротационный галоп: опора ~30% цикла (скорость RUN, без проскальзывания), задние → вытянутый полёт →
-  // передние → собранный полёт; позвоночник разгибается, когда лапы врозь, и сгибается дугой, когда собраны под телом
+  // Галоп по фазам: задние ставятся далеко под живот (спина дугой) и толкают → вытянутый полёт (передние вперёд,
+  // задние назад, спина прямая и длинная) → приземление на передние, тело проходит над ними → сбор в полёте: задние
+  // подтягиваются под живот. В опоре лапа стоит на месте: путь под телом = опора * длина цикла (скорость RUN).
+  const RUN_N = 18, RUN_FPS = 34, RUN_ST = 0.33, RUN_PATH = RUN_ST * 135 * RUN_N / RUN_FPS;
+  const RUNB = edit(STAND, q => { q.ears = 0.4; q.scap = 0.6; q.tail = TAIL(3.05, 0.25); });
+  // td — где лапа ставится, a — угол плюсны/пясти в начале и конце опоры, sw — перенос: [доля, x, y, угол]
+  const RUNK = {
+    H: { td: -6, a: [0.95, -0.55], sw: [[0.18, -52, -18, -1.4], [0.48, -24, -19, -0.1], [0.82, -2, -12, 0.8]] },
+    F: { td: 33, a: [0.4, -0.35], sw: [[0.2, 2, -12, null], [0.5, 20, -19, null], [0.8, 46, -15, null]] },
+  };
+  const cr = (p0, p1, p2, p3, u) => 0.5 * (2 * p1 + (p2 - p0) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u + (3 * p1 - p0 - 3 * p2 + p3) * u * u * u);
+  function runLeg(K, p) {
+    const lo = K.td - RUN_PATH;
+    if (p < RUN_ST) { const s = p / RUN_ST; return [K.td - RUN_PATH * s, FY, lerp(K.a[0], K.a[1], s) - 0.3 * seg(s, 0.7, 1)]; }
+    const s = (p - RUN_ST) / (1 - RUN_ST), pts = [[0, lo, FY, K.a[1] - 0.3], ...K.sw, [1, K.td, FY, K.a[0]]];
+    let i = 0;
+    while (i < pts.length - 2 && s > pts[i + 1][0]) i++;
+    const a = pts[Math.max(0, i - 1)], b = pts[i], c = pts[i + 1], d = pts[Math.min(pts.length - 1, i + 2)], u = (s - b[0]) / (c[0] - b[0]);
+    const ang = b[3] == null || c[3] == null ? null : lerp(b[3], c[3], smooth(u));
+    return [cr(a[1], b[1], c[1], d[1], u), Math.min(FY, cr(a[2], b[2], c[2], d[2], u)), ang];
+  }
   const bump = (ph, c, w) => { const d = ((ph - c) % 1 + 1.5) % 1 - 0.5; return Math.exp(-((d / w) ** 2)); };
   function runPose(i, n) {
-    const ph = i / n, q = gait(RUNB, ph, { HL: 0, HR: 0.08, FL: 0.5, FR: 0.6 }, 0.3, 8.7, 7, 1.25, 10);
-    const ext = Math.cos(TAU * (ph - 0.36)), air = bump(ph, 0.35, 0.06) + bump(ph, 0.86, 0.06);
-    q.H[0] -= 3.5 * ext; q.S[0] += 3.5 * ext; q.arch = 1.2 - 4 * ext;
-    // в полёте корпус выше; на опоре задних ниже круп, на опоре передних — грудь
-    const hs = bump(ph, 0.12, 0.13), fs = bump(ph, 0.6, 0.13);
-    q.H[1] += -4 * air + 1.8 * hs - 0.8 * fs; q.S[1] += -4 * air + 1.8 * fs - 0.8 * hs;
-    q.neck = 0.35 - 0.12 * ext; q.tail.a = 3.0 + 0.12 * ext;
-    q.tail.wave = 0.4 * Math.sin(ph * TAU);
+    const ph = i / n, q = clone(RUNB), offs = { HL: 0, HR: 0.1, FL: 0.5, FR: 0.61 };
+    for (const k in offs) {
+      const fr = k[0] === 'F', [x, y, a] = runLeg(RUNK[k[0]], ((ph - offs[k]) % 1 + 1) % 1);
+      q.feet[k] = [x + (k[1] === 'R' ? FAR[0] : 0), y];
+      (fr ? q.carp : q.meta)[k] = a;
+    }
+    // ext: +1 — вытянутый полёт, −1 — сбор
+    const ext = Math.cos(TAU * (ph - 0.43)), air = bump(ph, 0.45, 0.07) + bump(ph, 0.96, 0.06);
+    q.H[0] = -17 - 4.5 * ext; q.S[0] = 15 + 3 * ext; q.arch = 1.4 - 4 * ext;
+    // в полёте корпус выше; на опоре задних ниже круп, на опоре передних — грудь, а круп заносится вверх
+    const hs = bump(ph, 0.18, 0.13), fs = bump(ph, 0.66, 0.17);
+    q.H[1] = -32 - 4.5 * air + 2.5 * hs - 2.5 * fs; q.S[1] = -31 - 4.5 * air + 3 * fs - 1.5 * hs;
+    q.neck = 0.32 - 0.12 * ext + 0.1 * fs; q.neckLen = 12.5 + 1 * ext; q.headTilt = 0.02 + 0.06 * ext;
+    q.tail.a = 3.05 + 0.18 * ext; q.tail.wave = 0.35 * Math.sin(ph * TAU);
     return q;
   }
   const POUNCE = [
@@ -467,7 +491,7 @@ const Art = (() => {
     walk: { n: 32, fps: 29, pose: i => walkPose(i, 32, WALKB, 13.1, 4, 0.5) },
     walkUp: { n: 32, fps: 29, pose: i => walkPose(i, 32, WALKUPB, 13.1, 4, 0.5) },
     stalk: { n: 32, fps: 20, pose: i => walkPose(i, 32, STALKB, 6.05, 2.6, 0.25) },
-    run: { n: 18, fps: 42, pose: i => runPose(i, 18) },
+    run: { n: RUN_N, fps: RUN_FPS, pose: i => runPose(i, RUN_N) },
     crouch: { n: 4, fps: 8, pose: i => edit(CROUCH, q => { q.H[0] += 1.3 * Math.sin(i / 4 * TAU); q.H[1] += 0.5 * Math.cos(i / 4 * TAU); q.tail.wave = 0.9 * Math.sin(i / 4 * TAU); q.tail.ph = 2; }) },
     pounce: { n: 6, fps: 11, once: true, pose: i => POUNCE[i] },
     bat: { n: 6, fps: 9, strike: 3, pose: i => edit(BAT, q => { q.feet.FL = BAT_PAW[i].slice(); q.carp.FL = i ? null : 0.5; q.over = 'FL'; q.headTilt = -0.05 + 0.08 * Math.sin(i / 6 * TAU); q.tail.wave = 0.6 * Math.sin(i / 6 * TAU); }) },
