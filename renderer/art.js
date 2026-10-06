@@ -115,10 +115,11 @@ const Art = (() => {
   const HIP = [-2, 1], ISCH = [-4.6, 1.6]; // тазобедренный сустав от центра таза; седалищный бугор от сустава
   const FY = -1.8; // высота пальцевого сустава стоящей лапы
   // профиль корпуса вдоль позвоночника от таза (t=0) до лопаток (t=1): [t, над осью, под осью]
-  const TORSO = [[0, 6.4, 7.8], [0.15, 7.2, 9.4], [0.4, 6.6, 11.4], [0.65, 6.3, 11.6], [0.85, 7.8, 10.8], [1, 8.7, 9.8]];
-  // круп за тазом: [назад от таза, наклон вниз, над осью, под осью] — спина скругляется к корню хвоста, а не обрывается углом
-  const CROUP = [[8.8, 0.66, 1.3, 2.4], [6.9, 0.58, 3, 4.8], [4.5, 0.45, 4.7, 6.4], [2.2, 0.25, 5.8, 7.3]];
-  const TAIL_ROOT = [6.8, 0.6];
+  const TORSO = [[0, 6.4, 7.4], [0.15, 7, 8.6], [0.4, 6.6, 10.8], [0.65, 6.3, 11.6], [0.85, 7.8, 10.8], [1, 8.7, 9.8]];
+  // круп за тазом: [назад от таза, наклон вниз, над осью, под осью] — спина полого сходит к хвосту; корень хвоста
+  // (TAIL_ROOT: назад, наклон, вверх от оси крупа) лежит вровень с линией спины, хвост её продолжает, ягодица — под хвостом
+  const CROUP = [[8.6, 0.36, 5.2, 4.6], [6.6, 0.3, 5.8, 5.8], [4.4, 0.2, 6, 6.6], [2.2, 0.1, 6.2, 7.2]];
+  const TAIL_ROOT = [7.6, 0.33, 1.5];
   const HS = 1; // масштаб головы
   const NECK = 4.5; // шея от плеч до затылка: голова несётся на шее, а не лежит на груди
   const qb = (a, c, b, t) => V((1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * c.y + t * t * b.y);
@@ -150,7 +151,7 @@ const Art = (() => {
 
     // корпус
     const chain = [], scap = P.scap ?? 0.3;
-    const croup = (d, a) => add(add(H, uH, -d * Math.cos(a)), nH, d * Math.sin(a));
+    const croup = (d, a, up = 0) => add(add(H, uH, -d * Math.cos(a)), nH, d * Math.sin(a) - up);
     for (const [d, a, top, bot] of CROUP) chain.push([croup(d, a), flip ? bot : top, flip ? top : bot]);
     for (let i = 0; i <= 14; i++) {
       const t = i / 14, top = prof(t, 1) + scap * 1.5 * gauss(t, 0.9, 0.09), bot = prof(t, 2);
@@ -248,7 +249,7 @@ const Art = (() => {
           ell(kn.x, kn.y, 4.8, 4.8, 0, 12), ell(hock.x, hock.y, 3.3, 3.3, 0, 12));
         // задняя группа мышц бедра: от седалищного бугра к икре — сзади нога идёт плавной линией, а не зигзагом
         const PB = add(atH(HIP[0] + ISCH[0], HIP[1] + ISCH[1]), off), calf = add(lerpV(kn, hock, 0.3), V(-sd.y, sd.x), 4.4 * sg), heel = add(lerpV(kn, hock, 0.88), V(-sd.y, sd.x), 3 * sg);
-        if (!flip && (calf.x - kn.x) * uH.x + (calf.y - kn.y) * uH.y < 0) parts.push([HJ, PB, add(lerpV(PB, heel, 0.35), uH, -0.7), add(lerpV(PB, heel, 0.7), uH, 1), heel, lerpV(kn, hock, 0.6), kn]);
+        if (!flip && (calf.x - kn.x) * uH.x + (calf.y - kn.y) * uH.y < 0) parts.push([HJ, PB, add(lerpV(PB, heel, 0.35), uH, -0.3), add(lerpV(PB, heel, 0.7), uH, 2.2), heel, lerpV(kn, hock, 0.6), kn]);
         const pw = pawAt(foot, mv, 4.3);
         paw = pw.poly;
         legs[k] = { paw: pw.c, foot, knee: kn, hock, hj: HJ };
@@ -263,7 +264,7 @@ const Art = (() => {
 
     // хвост: от корня над седалищными буграми, сужается к кончику, не уходит под землю
     const tail = [];
-    let tp = croup(TAIL_ROOT[0], TAIL_ROOT[1]), th = P.tail.a;
+    let tp = croup(...TAIL_ROOT), th = P.tail.a;
     const TN = 14, TL = P.tail.len || 38;
     tail.push(tp);
     for (let i = 1; i <= TN; i++) {
@@ -429,39 +430,44 @@ const Art = (() => {
   // Галоп по фазам: задние ставятся далеко под живот (спина дугой) и толкают → вытянутый полёт (передние вперёд,
   // задние назад, спина прямая и длинная) → приземление на передние, тело проходит над ними → сбор в полёте: задние
   // подтягиваются под живот. В опоре лапа стоит на месте: путь под телом = опора * длина цикла (скорость RUN).
-  const RUN_N = 18, RUN_FPS = 34, RUN_ST = 0.33, RUN_PATH = RUN_ST * 135 * RUN_N / RUN_FPS;
+  const RUN_N = 32, RUN_FPS = 60, RUN_ST = 0.33, RUN_PATH = RUN_ST * 135 * RUN_N / RUN_FPS;
   const RUNB = edit(STAND, q => { q.ears = 0.4; q.scap = 0.6; q.tail = TAIL(3.05, 0.25); });
-  // td — где лапа ставится, a — угол плюсны/пясти в начале и конце опоры, sw — перенос: [доля, x, y, угол]
+  // td — где лапа ставится; a — угол плюсны/пясти в начале и конце опоры; sw — углы в переносе: [доля, угол].
+  // Перенос — плавная дуга: на отрыве лапа ещё идёт назад со скоростью опоры (k0 — во сколько раз быстрее: задние
+  // после толчка вытягиваются назад), к постановке уже идёт назад вместе с землёй (k1: передние перед этим
+  // выносятся вперёд). Скорость лапы на отрыве и постановке не скачет — бег не дёргается.
   const RUNK = {
-    H: { td: -6, a: [0.95, -0.55], sw: [[0.18, -52, -18, -1.4], [0.48, -24, -19, -0.1], [0.82, -2, -12, 0.8]] },
-    F: { td: 33, a: [0.4, -0.35], sw: [[0.2, 2, -12, null], [0.5, 20, -19, null], [0.8, 46, -15, null]] },
+    H: { td: -6, k0: 1.9, k1: 1, lift: 16, skew: 0.8, a: [0.95, -0.55], sw: [[0.2, -1.3], [0.5, -0.1], [0.82, 0.8]] },
+    F: { td: 33, k0: 1, k1: 1.8, lift: 15, skew: 1.1, a: [0.4, -0.35], sw: [[0.22, -1.2], [0.52, -0.8], [0.82, 0.2]] },
   };
   const cr = (p0, p1, p2, p3, u) => 0.5 * (2 * p1 + (p2 - p0) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u + (3 * p1 - p0 - 3 * p2 + p3) * u * u * u);
   function runLeg(K, p) {
-    const lo = K.td - RUN_PATH;
+    const lo = K.td - RUN_PATH, aEnd = K.a[1] - 0.3;
     if (p < RUN_ST) { const s = p / RUN_ST; return [K.td - RUN_PATH * s, FY, lerp(K.a[0], K.a[1], s) - 0.3 * seg(s, 0.7, 1)]; }
-    const s = (p - RUN_ST) / (1 - RUN_ST), pts = [[0, lo, FY, K.a[1] - 0.3], ...K.sw, [1, K.td, FY, K.a[0]]];
+    const s = (p - RUN_ST) / (1 - RUN_ST), s2 = s * s, s3 = s2 * s, v = RUN_PATH / RUN_ST * (1 - RUN_ST);
+    const x = (2 * s3 - 3 * s2 + 1) * lo - (s3 - 2 * s2 + s) * v * K.k0 + (3 * s2 - 2 * s3) * K.td - (s3 - s2) * v * K.k1;
+    const y = FY - K.lift * Math.sin(Math.PI * Math.pow(s, K.skew)) ** 1.5;
+    const pts = [[0, aEnd], ...K.sw, [1, K.a[0]]];
     let i = 0;
     while (i < pts.length - 2 && s > pts[i + 1][0]) i++;
-    const a = pts[Math.max(0, i - 1)], b = pts[i], c = pts[i + 1], d = pts[Math.min(pts.length - 1, i + 2)], u = (s - b[0]) / (c[0] - b[0]);
-    const ang = b[3] == null || c[3] == null ? null : lerp(b[3], c[3], smooth(u));
-    return [cr(a[1], b[1], c[1], d[1], u), Math.min(FY, cr(a[2], b[2], c[2], d[2], u)), ang];
+    const a = pts[Math.max(0, i - 1)], b = pts[i], c = pts[i + 1], d = pts[Math.min(pts.length - 1, i + 2)];
+    return [x, y, cr(a[1], b[1], c[1], d[1], (s - b[0]) / (c[0] - b[0]))];
   }
-  const bump = (ph, c, w) => { const d = ((ph - c) % 1 + 1.5) % 1 - 0.5; return Math.exp(-((d / w) ** 2)); };
   function runPose(i, n) {
-    const ph = i / n, q = clone(RUNB), offs = { HL: 0, HR: 0.1, FL: 0.5, FR: 0.61 };
+    const ph = i / n, q = clone(RUNB), offs = { HL: 0, HR: 0.1, FL: 0.5, FR: 0.61 }, wave = c => Math.cos(TAU * (ph - c));
     for (const k in offs) {
       const fr = k[0] === 'F', [x, y, a] = runLeg(RUNK[k[0]], ((ph - offs[k]) % 1 + 1) % 1);
       q.feet[k] = [x + (k[1] === 'R' ? FAR[0] : 0), y];
       (fr ? q.carp : q.meta)[k] = a;
     }
     // ext: +1 — вытянутый полёт, −1 — сбор
-    const ext = Math.cos(TAU * (ph - 0.43)), air = bump(ph, 0.45, 0.07) + bump(ph, 0.96, 0.06);
+    const ext = wave(0.43);
     q.H[0] = -17 - 4.5 * ext; q.S[0] = 15 + 3 * ext; q.arch = 1.4 - 4 * ext;
-    // в полёте корпус выше; на опоре задних ниже круп, на опоре передних — грудь, а круп заносится вверх
-    const hs = bump(ph, 0.18, 0.13), fs = bump(ph, 0.66, 0.17);
-    q.H[1] = -33.2 - 4.5 * air + 2.5 * hs - 2.5 * fs; q.S[1] = -31 - 4.5 * air + 3 * fs - 1.5 * hs;
-    q.neck = 0.32 - 0.12 * ext + 0.1 * fs; q.neckLen = 12.5 + 1 * ext; q.headTilt = 0.02 + 0.06 * ext;
+    // корпус качается плавно: круп ниже всего на опоре задних, грудь — на опоре передних; в полётах тело чуть выше
+    const up = 1 * Math.cos(2 * TAU * (ph - 0.46));
+    q.H[1] = -33.4 + 2 * wave(0.2) - up; q.S[1] = -31.2 + 2 * wave(0.72) - up;
+    // голова держится ровно: шея отыгрывает качку груди
+    q.neck = 0.34 - 0.1 * ext + 0.07 * wave(0.72); q.neckLen = 12.5 + 1 * ext; q.headTilt = 0.02 + 0.05 * ext;
     q.tail.a = 3.05 + 0.18 * ext; q.tail.wave = 0.35 * Math.sin(ph * TAU);
     return q;
   }
