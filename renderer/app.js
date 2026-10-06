@@ -171,7 +171,7 @@
     const side = Math.sign(o.x - c.x) || 1;
     c.partner = o; o.partner = c;
     set(o, 'agWait', { dur: 25 });
-    set(c, 'walk', { target: clamp(o.x - side * 65 * k, minX(), maxX()), then: 'agReady' });
+    set(c, 'walk', { target: clamp(o.x - side * 71 * k, minX(), maxX()), then: 'agReady' });
   }
   const FREE = ['idle', 'sit', 'walk', 'groom', 'wait', 'loaf', 'watch'];
   function bored(c) {
