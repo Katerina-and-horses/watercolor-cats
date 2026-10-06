@@ -115,13 +115,13 @@ const Art = (() => {
   const HIP = [-1, -0.5], ISCH = [-7.5, 1.5]; // тазобедренный сустав от центра таза; седалищный бугор от сустава
   const FY = -1.8; // высота пальцевого сустава стоящей лапы
   // профиль корпуса вдоль позвоночника от таза (t=0) до лопаток (t=1): [t, над осью, под осью]
-  const TORSO = [[0, 6.2, 6.6], [0.15, 5.9, 7.6], [0.4, 5.9, 9.4], [0.65, 6.3, 9.7], [0.85, 7.5, 9.2], [1, 8, 8.6]];
+  const TORSO = [[0, 7, 7.8], [0.15, 6.8, 9.4], [0.4, 6.9, 11.4], [0.65, 7.3, 11.6], [0.85, 8.4, 10.8], [1, 8.8, 9.8]];
   // профиль головы от затылка по часовой: темя, лоб, переносица, мочка носа, губа, подбородок, щека
-  const HEAD = [[-6.7, 0.6], [-6.3, -2.9], [-4.2, -5.5], [-0.8, -6.4], [2.4, -5.7], [4.6, -4], [6.2, -2.4], [7.7, -1.5], [8.5, -0.5],
-    [8.4, 0.7], [7.8, 1.5], [8, 2.6], [7.3, 3.8], [5.4, 4.6], [2.6, 5.4], [-1.4, 5.7], [-4.8, 4.6], [-6.5, 2.8]];
+  const HEAD = [[-7.1, 0.4], [-6.6, -3.1], [-4.3, -5.6], [-0.8, -6.5], [2.4, -5.8], [4.6, -4.1], [6.1, -2.6], [7.4, -1.6], [8.1, -0.6],
+    [8, 0.7], [7.5, 1.5], [7.7, 2.7], [7.1, 4], [5.2, 5.1], [2.4, 6.2], [-1.8, 6.5], [-5.2, 5.2], [-7, 2.9]];
   // ухо: основание спереди и сзади, кончик; прижимается назад-вниз
   const EAR = { b1: [1.5, -5.4], b2: [-5.3, -3.8], tip: [-2.4, -12.8], fold: [-5.2, 6.2] };
-  const HS = 1.15; // голова чуть крупнее строгих пропорций: шерсть и щёки
+  const HS = 1.22; // голова чуть крупнее строгих пропорций: шерсть и щёки
   const qb = (a, c, b, t) => V((1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * c.y + t * t * b.y);
   const unit = a => { const l = len(a) || 1; return V(a.x / l, a.y / l); };
   const gauss = (t, m, w) => Math.exp(-(((t - m) / w) ** 2));
@@ -156,7 +156,7 @@ const Art = (() => {
       chain.push([qb(H, C, S, t), flip ? bot : top, flip ? top : bot]);
     }
     const rumpC = atH(-1.8, 0.2), chestC = atS(1.6, 0.8);
-    body.push(limb(chain), ell(rumpC.x, rumpC.y, 6.8, 6.4, Math.atan2(uH.y, uH.x), 20), ell(chestC.x, chestC.y, 7.2, 8.4, Math.atan2(uS.y, uS.x), 20));
+    body.push(limb(chain), ell(rumpC.x, rumpC.y, 7.7, 7.4, Math.atan2(uH.y, uH.x), 20), ell(chestC.x, chestC.y, 8, 9.6, Math.atan2(uS.y, uS.x), 20));
     skel.push([H, C, S]);
 
     // шея и голова
@@ -165,7 +165,7 @@ const Art = (() => {
     if (Hc.y > (flip ? -10.5 : -6.2)) Hc = V(Hc.x, flip ? -10.5 : -6.2);
     const ht = P.headTilt || 0, hp = (x, y) => add(Hc, rot(V(x * HS, y * sg * HS), ht));
     const nd = unit(sub(Hc, NB));
-    body.push(limb([[atS(1.2, -0.6), 8.2, 8], [lerpV(NB, Hc, 0.45), 6.9, 6.6], [add(Hc, nd, -1.5), 6.6, 6.1]]));
+    body.push(limb([[atS(1.2, -0.6), 9.2, 9.2], [lerpV(NB, Hc, 0.45), 8.2, 7.9], [add(Hc, nd, -1.5), 7.6, 7.3]]));
     const head = HEAD.map(([x, y]) => hp(x, y));
     const e = P.ears || 0;
     const ear = (dx, dy) => {
@@ -191,7 +191,7 @@ const Art = (() => {
       const w = flip ? 1 : clampN((-foot.y - 2.2) / 4, 0, 1);
       f = unit(lerpV(V(1, 0), f, w));
       const c = add(add(foot, f, 2 - 0.7 * w), up, 0.1 + 0.3 * w);
-      return { c, poly: ell(c.x, c.y, rx - 0.5 * w, 1.95, Math.atan2(f.y, f.x), 14) };
+      return { c, poly: ell(c.x, c.y, rx - 0.5 * w, 2.4, Math.atan2(f.y, f.x), 14) };
     };
     // по умолчанию ближние лапы сливаются с корпусом; отдельным слоем со своим контуром — только лапа поверх тела
     const legs = {}, over = P.over || '', muscles = [];
@@ -213,11 +213,11 @@ const Art = (() => {
         const up = unit(sub(w, foot)), ua = unit(sub(el, SJ)), fa = unit(sub(w, el));
         // лопатка с мышцами плеча, плечо с трицепсом (локтевой бугор сзади), предплечье сужается к запястью
         const sh = limb([[T, 2.4, 3.4], [lerpV(T, SJ, 0.55), 4, 5], [SJ, 3, 4.8]]);
-        const arm = limb([[add(SJ, ua, -1.5), 2.6, 4.6], [SJ, 3.4, 5.6], [lerpV(SJ, el, 0.5), 4.6, 6.2], [el, 3.4, 4.5], [add(el, ua, 1.8), 2.6, 3.2]]);
+        const arm = limb([[add(SJ, ua, -1.5), 2.6, 4.6], [SJ, 3.4, 5.6], [lerpV(SJ, el, 0.5), 5, 6.8], [el, 4, 5], [add(el, ua, 1.8), 3, 3.6]]);
         inner2.push(sh, arm);
-        parts.push(limb([[add(el, fa, -2.2), 3, 3.4], [el, 3.4, 3.9], [lerpV(el, w, 0.25), 3.4, 3.6], [lerpV(el, w, 0.65), 2.7, 2.8],
-          [w, 2.4, 2.9], [lerpV(w, foot, 0.6), 2.3, 2.4], [foot, 2.2, 2.2]]));
-        const pw = pawAt(foot, up, 3.4);
+        parts.push(limb([[add(el, fa, -2.2), 3.6, 4], [el, 4.1, 4.6], [lerpV(el, w, 0.25), 4.1, 4.3], [lerpV(el, w, 0.65), 3.5, 3.6],
+          [w, 3.2, 3.5], [lerpV(w, foot, 0.6), 3.1, 3.1], [foot, 2.9, 2.9]]), ell(el.x, el.y, 4.3, 4.3, 0, 12), ell(w.x, w.y, 3.3, 3.3, 0, 12));
+        const pw = pawAt(foot, up, 4);
         paw = pw.poly;
         legs[k] = { paw: pw.c, foot, elbow: el, wrist: w, sj: SJ, top: T };
         // подгрудок: от плечевого сустава грудь плавно сходит к предплечью, плечо не торчит ступенькой
@@ -230,14 +230,15 @@ const Art = (() => {
         foot = add(hock, mv, -META);
         const fd = unit(sub(kn, HJ)), sd = unit(sub(hock, kn));
         // бедро: широкая масса от таза к колену; голень: икра в верхней трети, ахилл, пяточный бугор; плюсна
-        const thigh = limb([[add(HJ, fd, -2), 4.2, 4.6], [HJ, 6.6, 6.6], [lerpV(HJ, kn, 0.35), 7.2, 7.4], [lerpV(HJ, kn, 0.7), 5.4, 6.4],
-          [kn, 3.6, 4.6], [add(kn, fd, 1.6), 2.4, 3]]);
-        parts.push(thigh, limb([[add(kn, sd, -2.4), 2.8, 3.6], [kn, 3.3, 4.6], [lerpV(kn, hock, 0.24), 3, 4.8], [lerpV(kn, hock, 0.52), 2.5, 3.6],
-          [lerpV(kn, hock, 0.82), 2.1, 2.5], [hock, 2.3, 3.3], [lerpV(hock, foot, 0.3), 2.2, 2.5], [lerpV(hock, foot, 0.7), 2.05, 2.1], [foot, 2.2, 2.2]]));
+        const thigh = limb([[add(HJ, fd, -2), 5, 5.4], [HJ, 7.6, 7.6], [lerpV(HJ, kn, 0.35), 8.4, 8.6], [lerpV(HJ, kn, 0.7), 6.8, 7.6],
+          [kn, 4.8, 5.6], [add(kn, fd, 1.6), 3.2, 3.8]]);
+        parts.push(thigh, limb([[add(kn, sd, -2.4), 3.6, 4.4], [kn, 4.2, 5.4], [lerpV(kn, hock, 0.24), 4, 5.8], [lerpV(kn, hock, 0.52), 3.5, 4.8],
+          [lerpV(kn, hock, 0.82), 3, 3.6], [hock, 3, 3.6], [lerpV(hock, foot, 0.3), 2.9, 3.1], [lerpV(hock, foot, 0.7), 2.8, 2.8], [foot, 2.9, 2.9]]),
+          ell(kn.x, kn.y, 4.8, 4.8, 0, 12), ell(hock.x, hock.y, 3.3, 3.3, 0, 12));
         // задняя группа мышц бедра: от седалищного бугра к икре — сзади нога идёт плавной линией, а не зигзагом
-        const PB = add(atH(HIP[0] + ISCH[0], HIP[1] + ISCH[1]), off), calf = add(lerpV(kn, hock, 0.3), V(-sd.y, sd.x), 3.2 * sg);
+        const PB = add(atH(HIP[0] + ISCH[0], HIP[1] + ISCH[1]), off), calf = add(lerpV(kn, hock, 0.3), V(-sd.y, sd.x), 4.4 * sg);
         if (!flip && (calf.x - kn.x) * uH.x + (calf.y - kn.y) * uH.y < 0) parts.push([HJ, PB, add(lerpV(PB, calf, 0.5), uH, -1.2), calf, kn]);
-        const pw = pawAt(foot, mv, 3.7);
+        const pw = pawAt(foot, mv, 4.3);
         paw = pw.poly;
         legs[k] = { paw: pw.c, foot, knee: kn, hock, hj: HJ };
         if (!farLeg) muscles.push(thigh);
@@ -261,9 +262,9 @@ const Art = (() => {
       if (tp.y > -1.9) tp = V(tp.x, -1.9);
       tail.push(tp);
     }
-    const tw = i => lerp(3.1, 1.9, Math.pow(i / TN, 0.8));
+    const tw = i => lerp(3.7, 2.6, Math.pow(i / TN, 0.8));
     const tip = tail[TN];
-    const tailParts = [limb(tail.map((p, i) => [p, tw(i), tw(i)])), ell(tip.x, tip.y, 1.9, 1.9, 0, 12)];
+    const tailParts = [limb(tail.map((p, i) => [p, tw(i), tw(i)])), ell(tip.x, tip.y, 2.6, 2.6, 0, 12)];
 
     // на земле силуэт ложится плоско
     if (!flip) for (const list of [body, far, legsN]) for (const poly of list) for (const p of poly) if (p.y > -0.1) p.y = -0.1;
@@ -590,9 +591,9 @@ const Art = (() => {
     const legStripes = (c, k) => {
       const L = g.legs[k];
       if (k[0] === 'H') {
-        for (const t of [0.3, 0.55, 0.8]) across(c, L.hj, L.knee, t, 6 - 2.5 * t);
-        for (const t of [0.3, 0.62]) across(c, L.knee, L.hock, t, 3.4);
-      } else for (const t of [0.25, 0.55]) across(c, L.elbow, L.wrist, t, 3.2);
+        for (const t of [0.3, 0.55, 0.8]) across(c, L.hj, L.knee, t, 7.5 - 3 * t);
+        for (const t of [0.3, 0.62]) across(c, L.knee, L.hock, t, 4.4);
+      } else for (const t of [0.25, 0.55]) across(c, L.elbow, L.wrist, t, 4);
     };
     const tailLayer = () => layer(g.tailParts, look.base, c => {
       const gr = c.createLinearGradient(0, -40, 0, 0);
@@ -601,7 +602,7 @@ const Art = (() => {
       if (look.tabby) {
         c.filter = `blur(${0.5 * s}px)`;
         for (let i = 3; i < g.tail.length - 1; i += 2) {
-          const a = g.tail[i - 1], b = g.tail[i + 1], d = sub(b, a), l = len(d) || 1, nn = V(-d.y / l * 3.5, d.x / l * 3.5);
+          const a = g.tail[i - 1], b = g.tail[i + 1], d = sub(b, a), l = len(d) || 1, nn = V(-d.y / l * 4.2, d.x / l * 4.2);
           stripe(c, add(g.tail[i], nn), add(g.tail[i], nn, -1), 1.6, look.stripe, 0.6);
         }
         c.filter = 'none';
@@ -640,8 +641,8 @@ const Art = (() => {
         c.filter = `blur(${0.55 * s}px)`;
         for (let i = 0; i < 8; i++) {
           const t = 0.03 + i * 0.125, p0 = qb(Hh, Cc, Ss, t), d = unit(sub(qb(Hh, Cc, Ss, t + 0.02), p0));
-          const back = V(d.y * sg, -d.x * sg), top = add(p0, back, 7);
-          stripe(c, top, add(add(top, back, -(8.5 + (i % 2) * 3)), d, -2.2), 2.1, look.stripe, 0.55);
+          const back = V(d.y * sg, -d.x * sg), top = add(p0, back, 8);
+          stripe(c, top, add(add(top, back, -(10 + (i % 2) * 3.5)), d, -2.4), 2.2, look.stripe, 0.55);
         }
         for (const [a, b] of [[[-0.6, -6], [1, -3.6]], [[1.8, -5.6], [3, -3.6]], [[-3.2, -5.6], [-1.6, -3.4]]]) stripe(c, hp(...a), hp(...b), 1.2, look.stripe, 0.5);
         for (const [a, b] of [[[2.4, -0.6], [-3.4, 0.6]], [[2.6, 1.6], [-3, 3.4]]]) stripe(c, hp(...a), hp(...b), 1.1, look.stripe, 0.45);
@@ -681,15 +682,15 @@ const Art = (() => {
     o.beginPath(); trace(o, A.innerEar); o.fill();
     o.restore();
     if (P.tongue > 0.5) {
-      const tg = hp(8.5, 2.7);
+      const tg = hp(8.1, 2.8);
       o.fillStyle = '#e07f8a';
       o.beginPath(); o.ellipse(tg.x, tg.y, 1.5, 1, -(P.headTilt || 0) * g.sg + 0.5, 0, TAU); o.fill();
     }
     o.fillStyle = look.nose;
-    o.beginPath(); trace(o, [hp(7.8, -1.2), hp(8.6, -0.5), hp(8.3, 0.7), hp(7.6, 0.4)]); o.fill();
+    o.beginPath(); trace(o, [hp(7.4, -1.3), hp(8.2, -0.6), hp(7.9, 0.7), hp(7.2, 0.4)]); o.fill();
     o.strokeStyle = hexA(look.ink, 0.6); o.lineWidth = 0.7; o.lineCap = 'round';
     // рот: от мочки носа вниз и назад к уголку
-    const m0 = hp(7.9, 0.8), m1 = hp(7.7, 2.3), m2 = hp(6.5, 2.9), m3 = hp(5.4, 2.5);
+    const m0 = hp(7.5, 0.8), m1 = hp(7.3, 2.4), m2 = hp(6.2, 3), m3 = hp(5.1, 2.6);
     o.beginPath(); o.moveTo(m0.x, m0.y); o.lineTo(m1.x, m1.y); o.quadraticCurveTo(m2.x, m2.y, m3.x, m3.y); o.stroke();
     o.strokeStyle = hexA(look.ink, 0.4); o.lineWidth = 0.4;
     for (const [a, b, c] of [[[6.9, 1.4], [11, 0.4], [15, 0.6]], [[6.8, 2], [11, 2.6], [14.7, 4]], [[6.5, 2.5], [9.5, 4.6], [12.5, 7]], [[6, 2.2], [2.8, 3.6], [-0.5, 6.4]]]) {
