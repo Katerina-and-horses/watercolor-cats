@@ -121,7 +121,7 @@ const Art = (() => {
     [8, 0.7], [7.5, 1.5], [7.7, 2.7], [7.1, 4], [5.2, 5.1], [2.4, 6.2], [-1.8, 6.5], [-5.2, 5.2], [-7, 2.9]];
   // ухо: основание спереди и сзади, кончик; прижимается назад-вниз
   const EAR = { b1: [1.5, -5.4], b2: [-5.3, -3.8], tip: [-2.4, -12.8], fold: [-5.2, 6.2] };
-  const HS = 1.22; // голова чуть крупнее строгих пропорций: шерсть и щёки
+  const HS = 1.42; // голова чуть крупнее строгих пропорций: шерсть и щёки
   const qb = (a, c, b, t) => V((1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * c.y + t * t * b.y);
   const unit = a => { const l = len(a) || 1; return V(a.x / l, a.y / l); };
   const gauss = (t, m, w) => Math.exp(-(((t - m) / w) ** 2));
@@ -155,9 +155,19 @@ const Art = (() => {
       const t = i / 14, top = prof(t, 1) + scap * 1.5 * gauss(t, 0.9, 0.09), bot = prof(t, 2);
       chain.push([qb(H, C, S, t), flip ? bot : top, flip ? top : bot]);
     }
-    const rumpC = atH(-1.8, 0.2), chestC = atS(1.6, 0.8);
-    body.push(limb(chain), ell(rumpC.x, rumpC.y, 7.7, 7.4, Math.atan2(uH.y, uH.x), 20), ell(chestC.x, chestC.y, 8, 9.6, Math.atan2(uS.y, uS.x), 20));
+    const rumpC = atH(-2.6, 1.2), chestC = atS(1.6, 0.8);
+    body.push(limb(chain), ell(rumpC.x, rumpC.y, 8.4, 8.6, Math.atan2(uH.y, uH.x), 20), ell(chestC.x, chestC.y, 8, 9.6, Math.atan2(uS.y, uS.x), 20));
     skel.push([H, C, S]);
+    // шерсть: мягкие пряди по краю силуэта — манишка на груди, подшёрсток на животе, щёки, «штаны» на бёдрах
+    const tuft = (p, dir, L, w) => { const d = unit(dir), nn = V(-d.y, d.x); return [add(p, nn, w), add(add(p, d, L * 0.55), nn, w * 0.6), add(p, d, L), add(add(p, d, L * 0.5), nn, -w * 0.65), add(p, nn, -w)]; };
+    if (!flip) for (let t = 0.2; t < 0.86; t += 0.082) {
+      const p = qb(H, C, S, t), d = unit(sub(qb(H, C, S, t + 0.02), p)), dn = V(-d.y, d.x);
+      body.push(tuft(add(p, dn, prof(t, 2) - 1.2), add(V(dn.x * 0.8, dn.y * 0.8), d, -0.6), 3.6, 2.6));
+    }
+    for (const a of [0.15, 0.55, 0.95, 1.35]) {
+      const o = add(V(uS.x * Math.cos(a), uS.y * Math.cos(a)), nS, Math.sin(a));
+      body.push(tuft(add(chestC, o, 7.6), add(o, nS, 0.7), 3.6, 2.6));
+    }
 
     // шея и голова
     const NB = atS(5, -2.5);
@@ -165,7 +175,7 @@ const Art = (() => {
     if (Hc.y > (flip ? -10.5 : -6.2)) Hc = V(Hc.x, flip ? -10.5 : -6.2);
     const ht = P.headTilt || 0, hp = (x, y) => add(Hc, rot(V(x * HS, y * sg * HS), ht));
     const nd = unit(sub(Hc, NB));
-    body.push(limb([[atS(1.2, -0.6), 9.2, 9.2], [lerpV(NB, Hc, 0.45), 8.2, 7.9], [add(Hc, nd, -1.5), 7.6, 7.3]]));
+    body.push(limb([[atS(1.2, -0.6), 9.4, 9.6], [lerpV(NB, Hc, 0.45), 9, 8.8], [add(Hc, nd, -1.5), 8.8, 8.6]]));
     const head = HEAD.map(([x, y]) => hp(x, y));
     const e = P.ears || 0;
     const ear = (dx, dy) => {
@@ -177,6 +187,7 @@ const Art = (() => {
     };
     const earN = ear(0, 0), earF = ear(4.2, 0.5);
     body.push(head, earN.poly);
+    for (const [x, y] of [[1.2, 5.6], [-1.6, 5.9], [-4.2, 5.2], [-6.2, 3.2]]) body.push(tuft(hp(x, y - 0.6), sub(hp(x - 1.3, y + 2), hp(x, y)), 2.6 * HS, 1.5 * HS));
     far.push(earF.poly);
     // раковина ближнего уха открыта вперёд-вбок: розовая середина, у дальнего видна внутренняя сторона
     for (const [E, k1, k2] of [[earN, 0.62, 0.3], [earF, 0.7, 0.5]]) {
@@ -237,7 +248,9 @@ const Art = (() => {
           ell(kn.x, kn.y, 4.8, 4.8, 0, 12), ell(hock.x, hock.y, 3.3, 3.3, 0, 12));
         // задняя группа мышц бедра: от седалищного бугра к икре — сзади нога идёт плавной линией, а не зигзагом
         const PB = add(atH(HIP[0] + ISCH[0], HIP[1] + ISCH[1]), off), calf = add(lerpV(kn, hock, 0.3), V(-sd.y, sd.x), 4.4 * sg);
-        if (!flip && (calf.x - kn.x) * uH.x + (calf.y - kn.y) * uH.y < 0) parts.push([HJ, PB, add(lerpV(PB, calf, 0.5), uH, -1.2), calf, kn]);
+        if (!flip && (calf.x - kn.x) * uH.x + (calf.y - kn.y) * uH.y < 0) parts.push([HJ, PB, add(lerpV(PB, calf, 0.5), uH, -2.6), calf, kn]);
+        if (!flip && (calf.x - kn.x) * uH.x + (calf.y - kn.y) * uH.y < 0) for (const t of [0.12, 0.38, 0.64, 0.9])
+          parts.push(tuft(add(lerpV(PB, calf, t), uH, 0.6), add(V(-uH.x * 0.7, -uH.y * 0.7), nH, 0.8), 3.8, 2.6));
         const pw = pawAt(foot, mv, 4.3);
         paw = pw.poly;
         legs[k] = { paw: pw.c, foot, knee: kn, hock, hj: HJ };
@@ -252,21 +265,22 @@ const Art = (() => {
 
     // хвост: от корня над седалищными буграми, сужается к кончику, не уходит под землю
     const tail = [];
-    let tp = atH(-6.6, -2.6), th = P.tail.a;
+    let tp = atH(-7, -1.6), th = P.tail.a;
     const TN = 14, TL = P.tail.len || 38;
     tail.push(tp);
     for (let i = 1; i <= TN; i++) {
       const t = i / TN;
       th += P.tail.curl / TN + (P.tail.wave || 0) * Math.cos(t * Math.PI * 1.5 + (P.tail.ph || 0)) * 0.14 * t;
       tp = add(tp, dirA(th), TL / TN);
-      if (tp.y > -1.9) tp = V(tp.x, -1.9);
+      if (tp.y > -4) tp = V(tp.x, -4);
       tail.push(tp);
     }
-    const tw = i => lerp(3.7, 2.6, Math.pow(i / TN, 0.8));
+    const tw = i => 3.9 + 1.5 * Math.sin(Math.PI * Math.pow(i / TN, 0.75)) - 0.9 * Math.pow(i / TN, 3); // пушистый: шире к середине
     const tip = tail[TN];
-    const tailParts = [limb(tail.map((p, i) => [p, tw(i), tw(i)])), ell(tip.x, tip.y, 2.6, 2.6, 0, 12)];
+    const tailParts = [limb(tail.map((p, i) => [p, tw(i), tw(i)])), ell(tip.x, tip.y, 3, 3, 0, 12)];
 
     // на земле силуэт ложится плоско
+    for (const poly of tailParts) for (const p of poly) if (p.y > -0.1) p.y = -0.1;
     if (!flip) for (const list of [body, far, legsN]) for (const poly of list) for (const p of poly) if (p.y > -0.1) p.y = -0.1;
 
     A.head = Hc;
@@ -602,7 +616,7 @@ const Art = (() => {
       if (look.tabby) {
         c.filter = `blur(${0.5 * s}px)`;
         for (let i = 3; i < g.tail.length - 1; i += 2) {
-          const a = g.tail[i - 1], b = g.tail[i + 1], d = sub(b, a), l = len(d) || 1, nn = V(-d.y / l * 4.2, d.x / l * 4.2);
+          const a = g.tail[i - 1], b = g.tail[i + 1], d = sub(b, a), l = len(d) || 1, nn = V(-d.y / l * 5.4, d.x / l * 5.4);
           stripe(c, add(g.tail[i], nn), add(g.tail[i], nn, -1), 1.6, look.stripe, 0.6);
         }
         c.filter = 'none';
