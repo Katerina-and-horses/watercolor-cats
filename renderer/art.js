@@ -115,7 +115,7 @@ const Art = (() => {
   const HIP = [-2, 1], ISCH = [-4.6, 1.6]; // тазобедренный сустав от центра таза; седалищный бугор от сустава
   const FY = -1.8; // высота пальцевого сустава стоящей лапы
   // профиль корпуса вдоль позвоночника от таза (t=0) до лопаток (t=1): [t, над осью, под осью]
-  const TORSO = [[0, 6.3, 7.8], [0.15, 6.6, 9.4], [0.4, 6.9, 11.4], [0.65, 7.3, 11.6], [0.85, 8.4, 10.8], [1, 8.8, 9.8]];
+  const TORSO = [[0, 6.8, 7.8], [0.15, 6.9, 9.4], [0.4, 6.9, 11.4], [0.65, 7.3, 11.6], [0.85, 8.4, 10.8], [1, 8.8, 9.8]];
   const HS = 1.08; // масштаб головы
   const qb = (a, c, b, t) => V((1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * c.y + t * t * b.y);
   const unit = a => { const l = len(a) || 1; return V(a.x / l, a.y / l); };
@@ -151,7 +151,7 @@ const Art = (() => {
       chain.push([qb(H, C, S, t), flip ? bot : top, flip ? top : bot]);
     }
     const rumpC = atH(0.2, 1.3), chestC = atS(1.6, 0.8);
-    body.push(limb(chain), ell(rumpC.x, rumpC.y, 6.8, 7.5, Math.atan2(uH.y, uH.x), 20), ell(chestC.x, chestC.y, 8, 9.6, Math.atan2(uS.y, uS.x), 20));
+    body.push(limb(chain), ell(rumpC.x, rumpC.y, 6.8, 8, Math.atan2(uH.y, uH.x), 20), ell(chestC.x, chestC.y, 8, 9.6, Math.atan2(uS.y, uS.x), 20));
     skel.push([H, C, S]);
     // шерсть: мягкие пряди по краю силуэта — манишка на груди, подшёрсток на животе, щёки, «штаны» на бёдрах
     const tuft = (p, dir, L, w) => { const d = unit(dir), nn = V(-d.y, d.x); return [add(p, nn, w), add(add(p, d, L * 0.55), nn, w * 0.6), add(p, d, L), add(add(p, d, L * 0.5), nn, -w * 0.65), add(p, nn, -w)]; };
@@ -276,7 +276,7 @@ const Art = (() => {
 
     A.head = Hc;
     A.eyeN = hp(-1.4, -0.6); A.eyeF = hp(6.4, -1); A.eyeAng = -ht;
-    A.eyes = [[A.eyeN, 2.5 * HS, 2.2 * HS], [A.eyeF, 2.15 * HS, 2.05 * HS]];
+    A.eyes = [[A.eyeN, 2.7 * HS, 2.5 * HS], [A.eyeF, 2.3 * HS, 2.3 * HS]];
     A.mouth = hp(6.3, 5.2);
     A.paw = legs.FL.paw;
     A.top = Math.min(...head.flat().map(p => p.y), ...chain.map(c => c[0].y - c[1]));
@@ -288,23 +288,23 @@ const Art = (() => {
   // стоя: спина ровная, круп на уровне холки, голова над линией спины; хвост расслаблен — вниз и кончиком вверх
   const TAIL = (a, curl, len = 38) => ({ a, curl, wave: 0, ph: 0, len });
   const STAND = {
-    H: [-17, -33.5], S: [15, -32], arch: 0.8, scap: 0.3, flip: 0,
+    H: [-17, -35.2], S: [15, -32], arch: 0.8, scap: 0.3, flip: 0,
     feet: { FL: [19, FY], FR: [22.5, FY], HL: [-20.5, FY], HR: [-16.5, FY] }, meta: { HL: 0.47, HR: 0.47 }, carp: { FL: 0.5, FR: 0.5 },
-    neck: 0.8, neckLen: 12.5, headTilt: -0.1, ears: 0, tongue: 0,
+    neck: 0.98, neckLen: 12.5, headTilt: 0.04, ears: 0, tongue: 0,
     tail: TAIL(3.5, -1.3), tailFront: 0,
   };
   // сидя: круп на земле, плюсны лежат, колени подняты к животу, передние прямые, хвост обвивает лапки
   const SIT = {
     H: [-10, -9.4], S: [6, -29], arch: 3, scap: 0.1, flip: 0,
     feet: { FL: [16, FY], FR: [18.5, FY], HL: [4, FY], HR: [6.5, FY] }, meta: { HL: 1.5, HR: 1.5 }, carp: { FL: 0.4, FR: 0.4 },
-    neck: 1.15, neckLen: 12, headTilt: -0.1, ears: 0, tongue: 0,
+    neck: 1.2, neckLen: 12, headTilt: 0.04, ears: 0, tongue: 0,
     tail: TAIL(4.5, 2.1), tailFront: 1,
   };
   // «буханка»: лежит на груди, предплечья и плюсны на земле
   const LOAF = {
     H: [-14, -10], S: [11, -11.2], arch: 1.6, scap: 0.2, flip: 0,
     feet: { FL: [18, FY], FR: [21, FY], HL: [-1, FY], HR: [2, FY] }, meta: { HL: 1.5, HR: 1.5 }, carp: { FL: 1.45, FR: 1.45 },
-    neck: 0.95, neckLen: 11.5, headTilt: -0.05, ears: 0.1, tongue: 0,
+    neck: 1.0, neckLen: 11.5, headTilt: 0.04, ears: 0.05, tongue: 0,
     tail: TAIL(3.8, 2.4), tailFront: 1,
   };
   // спит клубком: спина круглым куполом, голова уткнута вниз к лапам, хвост укрывает нос
@@ -411,11 +411,11 @@ const Art = (() => {
     return q;
   }
   // на шагу голова несётся на уровне спины
-  const WALKB = edit(STAND, q => { q.feet.FL[0] = 18; q.feet.HL[0] = -20; q.H[1] = -32.5; q.S[1] = -31; q.neck = 0.42; q.headTilt = -0.05; q.tail = TAIL(3.3, -0.9); });
-  const WALKUPB = edit(WALKB, q => { q.neck = 0.6; q.headTilt = -0.1; q.tail = TAIL(1.95, -0.9); });
+  const WALKB = edit(STAND, q => { q.feet.FL[0] = 18; q.feet.HL[0] = -20; q.H[1] = -34.2; q.S[1] = -31; q.neck = 0.72; q.headTilt = 0.03; q.tail = TAIL(3.3, -0.9); });
+  const WALKUPB = edit(WALKB, q => { q.neck = 0.9; q.headTilt = 0.06; q.tail = TAIL(1.95, -0.9); });
   // крадётся: низко на согнутых, лопатки выше спины, голова вытянута вперёд на уровне спины
   const STALKB = edit(STAND, q => {
-    q.feet.FL[0] = 18; q.feet.HL[0] = -20; q.H = [-17, -27.5]; q.S = [15, -25.5]; q.arch = -0.4; q.scap = 1.5; q.neck = 0.18; q.neckLen = 12.5; q.headTilt = 0.05; q.ears = 0.2;
+    q.feet.FL[0] = 18; q.feet.HL[0] = -20; q.H = [-17, -28.6]; q.S = [15, -25.5]; q.arch = -0.4; q.scap = 1.5; q.neck = 0.18; q.neckLen = 12.5; q.headTilt = 0.05; q.ears = 0.2;
     q.meta = { HL: 0.8, HR: 0.8 }; q.carp = { FL: 0.6, FR: 0.6 };
     q.tail = TAIL(3.25, -0.2);
   });
@@ -453,7 +453,7 @@ const Art = (() => {
     q.H[0] = -17 - 4.5 * ext; q.S[0] = 15 + 3 * ext; q.arch = 1.4 - 4 * ext;
     // в полёте корпус выше; на опоре задних ниже круп, на опоре передних — грудь, а круп заносится вверх
     const hs = bump(ph, 0.18, 0.13), fs = bump(ph, 0.66, 0.17);
-    q.H[1] = -32 - 4.5 * air + 2.5 * hs - 2.5 * fs; q.S[1] = -31 - 4.5 * air + 3 * fs - 1.5 * hs;
+    q.H[1] = -33.2 - 4.5 * air + 2.5 * hs - 2.5 * fs; q.S[1] = -31 - 4.5 * air + 3 * fs - 1.5 * hs;
     q.neck = 0.32 - 0.12 * ext + 0.1 * fs; q.neckLen = 12.5 + 1 * ext; q.headTilt = 0.02 + 0.06 * ext;
     q.tail.a = 3.05 + 0.18 * ext; q.tail.wave = 0.35 * Math.sin(ph * TAU);
     return q;
@@ -720,7 +720,7 @@ const Art = (() => {
     o.beginPath();
     const n0 = hp(6.3, 3.2), n1 = hp(6.3, 4.4);
     o.moveTo(n0.x, n0.y); o.lineTo(n1.x, n1.y);
-    for (const [qq, ee] of [[[5.4, 5.4], [4.4, 4.7]], [[7.2, 5.4], [8.2, 4.7]]]) {
+    for (const [qq, ee] of [[[5.3, 5.6], [4, 4.2]], [[7.3, 5.6], [8.6, 4.2]]]) { // уголки рта приподняты
       const q1 = hp(...qq), e1 = hp(...ee);
       o.moveTo(n1.x, n1.y); o.quadraticCurveTo(q1.x, q1.y, e1.x, e1.y);
     }
