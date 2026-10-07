@@ -41,6 +41,7 @@ list.forEach(([lk, anim, i], j) => {
   g.drawImage(f.c, x, y);
   g.save(); g.translate(x + SPR.OX * s, y + SPR.OY * s); g.scale(s, s);
   eyes(g, look, f.anchors, ['curl', 'curlIn', 'sleep'].includes(anim));
+  if (f.over) { g.restore(); g.drawImage(f.over, x, y); g.save(); g.translate(x + SPR.OX * s, y + SPR.OY * s); g.scale(s, s); }
   g.strokeStyle = 'rgba(0,0,0,0.15)'; g.lineWidth = 0.3; g.beginPath(); g.moveTo(-SPR.OX, 0); g.lineTo(SPR.W - SPR.OX, 0); g.stroke();
   if (process.env.SKEL && f.skel) {
     g.strokeStyle = 'rgba(0,90,255,0.9)'; g.lineWidth = 0.6; g.fillStyle = 'rgba(255,0,0,0.9)';
