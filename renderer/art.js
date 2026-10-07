@@ -220,9 +220,9 @@ const Art = (() => {
         let wrist;
         if (cm != null) wrist = add(foot, metaV(cm), CARP);
         else { const d = unit(sub(foot, SJ)), n2 = V(-d.y, d.x); wrist = add(add(foot, d, -4.2), n2, 2.1 * fb); }
-        let r = ik(SJ, wrist, HUM, RAD, fb);
-        // локоть смотрит назад-вниз, к хвосту — и когда лапа поднята выше плеча (умывание), иначе он выворачивается вперёд
-        if (!flip) { const r2 = ik(SJ, wrist, HUM, RAD, -fb); if (r2.joint.x * uS.x + r2.joint.y * uS.y < r.joint.x * uS.x + r.joint.y * uS.y - 0.01) r = r2; }
+        // сустав всегда по одну сторону от линии плечо–запястье: локоть назад в опоре, вниз при выносе вперёд,
+        // вперёд-вниз под мордой, когда лапа поднята к голове
+        const r = ik(SJ, wrist, HUM, RAD, fb);
         const el = lift(r.joint), w = r.end;
         foot = add(foot, sub(w, wrist));
         const up = unit(sub(w, foot)), ua = unit(sub(el, SJ)), fa = unit(sub(w, el));
@@ -239,6 +239,7 @@ const Art = (() => {
         legs[k] = { paw: pw.c, pawF: pw.f, pawR: pw.rx, foot, elbow: el, wrist: w, sj: SJ, top: T };
         // подгрудок: от плечевого сустава грудь плавно сходит к предплечью, плечо не торчит ступенькой
         if (!flip) inner2.push([atS(7.5, 0.5), add(SJ, V(3.2, 1.5)), add(lerpV(SJ, el, 0.6), V(5, 2.2)), add(el, fa, 3.5), add(el, V(-2, -3)), atS(-3, 6)]);
+        if (over.includes(k)) parts.push(limb([[add(SJ, ua, -2), 2.4, 3], [SJ, 3, 3.8], [lerpV(SJ, el, 0.5), 3.5, 4.4], [el, 3.6, 4.3], [add(el, ua, 1.6), 2.8, 3.2]]));
         if (!farLeg) muscles.push(arm);
         skel.push([T, SJ, el, w, foot]);
       } else {
@@ -488,7 +489,11 @@ const Art = (() => {
   const BAT_PAW = [[20, FY], [24, -14], [29, -18], [34, -8], [32, -2.4], [26, -5]];
   const BAT_CARP = [0.5, -0.3, 1.0, 0.5, 0.5, 0.2]; // запястье согнуто: лапка замахивается и шлёпает сверху
   // умывание передней лапой: лизнуть подушечку (голова к лапе) и провести лапой по уху и щеке
-  const GROOM_PAW = [[25.5, -30], [25.5, -28.5], [25.5, -30], [25.5, -28.5], [25.5, -30], [27.5, -38], [23.5, -45], [17.5, -48], [21.5, -39], [25.5, -31]];
+  // По наблюдениям за грумингом: кошка лижет подушечку и запястье, затем ведёт лапой по морде снизу вверх — от носа
+  // через глаз ко лбу — и обратно; голову при этом опускает к лапе. Плечо выносится вперёд, локоть остаётся под мордой
+  // перед грудью, предплечье почти отвесно, кисть согнута к морде. [пальцы x, y, сгиб кисти]
+  const GROOM_PAW = [[27, -34.5, 2.6], [27, -33.5, 2.6], [27, -34.5, 2.6], [27, -33.5, 2.6], [27, -34.5, 2.6],
+    [28.5, -38, 3.0], [27, -43, 3.3], [26, -45.5, 3.4], [27.5, -42, 3.2], [28, -36, 2.8]];
   // «виолончель»: сидя на бедре, задняя лапа задрана вверх, голова к животу и внутренней стороне бедра
   const GROOM_LEG = edit(SIT, q => {
     q.H = [-7, -9.4]; q.S = [-2, -27]; q.arch = 4.5;
@@ -514,8 +519,8 @@ const Art = (() => {
     groom: {
       n: 10, fps: 4, pose: i => edit(SIT, q => {
         const wipe = i >= 5;
-        q.feet.FL = GROOM_PAW[i].slice(); q.carp.FL = null; q.over = 'FL';
-        q.neck = wipe ? 0.75 : 0.6; q.neckLen = 11; q.headTilt = wipe ? -0.5 + 0.1 * Math.sin(i) : -0.45 + 0.1 * (i % 2);
+        q.feet.FL = GROOM_PAW[i].slice(0, 2); q.carp.FL = GROOM_PAW[i][2]; q.over = 'FL';
+        q.neck = wipe ? 0.25 : 0.45; q.neckLen = 10.5; q.headTilt = wipe ? -0.7 + 0.06 * (i - 7) : -0.5 + 0.1 * (i % 2);
         q.ears = wipe ? 0.35 : 0.1; q.tongue = !wipe && i % 2 === 0 ? 1 : 0;
       }),
     },
@@ -680,10 +685,10 @@ const Art = (() => {
         across(c, L.knee, L.hock, 0.45, 4);
       } else for (const t of [0.25, 0.55]) across(c, L.elbow, L.wrist, t, 4);
     };
-    const tailLayer = () => layer(g.tailParts, look.base, c => {
-      const gr = c.createLinearGradient(0, -40, 0, 0);
-      gr.addColorStop(0, hexA(look.light, 0.35)); gr.addColorStop(1, hexA(look.shade, 0.25));
-      c.fillStyle = gr; c.fillRect(-SPR.OX, -SPR.OY, SPR.W, SPR.H);
+    // хвост — часть общего силуэта: растёт из крупа одним контуром. Когда он лежит перед телом (клубок),
+    // его форма читается мягкой тенью по краю, как бедро
+    const tailDeco = c => {
+      if (P.tailFront) { c.filter = `blur(${0.8 * s}px)`; c.fillStyle = hexA(look.base, 0.85); fillEach(c, g.tailParts); c.filter = 'none'; }
       if (look.tabby) {
         c.filter = `blur(${0.5 * s}px)`;
         for (let i = 3; i < g.tail.length - 1; i += 2) {
@@ -692,7 +697,11 @@ const Art = (() => {
         }
         c.filter = 'none';
       }
-    }, 0.5, 0.5);
+      if (P.tailFront) {
+        c.filter = `blur(${0.35 * s}px)`; c.strokeStyle = hexA(look.ink, 0.5); c.lineWidth = 1; c.lineJoin = 'round';
+        c.beginPath(); trace(c, g.tailParts[0]); c.stroke(); c.filter = 'none';
+      }
+    };
     // мышечная масса читается мягкой тенью по её краю (бедро, плечо), как в рисунке с натуры
     const muscleShade = (c, polys, a) => {
       c.filter = `blur(${1.3 * s}px)`;
@@ -701,7 +710,6 @@ const Art = (() => {
       c.filter = 'none';
     };
 
-    if (!P.tailFront) tailLayer();
     // дальние лапы и дальнее ухо
     layer(g.far, look.far, c => {
       if (look.tabby) { c.filter = `blur(${0.5 * s}px)`; legStripes(c, 'FR'); legStripes(c, 'HR'); c.filter = 'none'; }
@@ -709,7 +717,7 @@ const Art = (() => {
     }, 0.5, 0.35);
 
     // корпус и голова
-    layer(g.body, look.base, c => {
+    layer(g.body.concat(g.tailParts), look.base, c => {
       shadeGrad(c, A.top, 0, 0.55, 0.45);
       c.filter = `blur(${3 * s}px)`;
       for (let k = 0; k < 8; k++) {
@@ -741,6 +749,7 @@ const Art = (() => {
         c.filter = 'none';
       }
       muscleShade(c, g.muscles.filter((_, i) => !ov.includes(i ? 'HL' : 'FL')), 0.28);
+      tailDeco(c);
       // белое: манишка на груди (и живот, когда на спине), мордочка с подбородком
       c.filter = `blur(${1.6 * s}px)`;
       c.fillStyle = `rgba(255,252,246,${0.9 * look.white.chest})`;
@@ -768,11 +777,10 @@ const Art = (() => {
       if (look.tabby) { c.filter = `blur(${0.5 * s}px)`; for (const k of ['FL', 'HL']) if (ov.includes(k)) legStripes(c, k); c.filter = 'none'; }
       whitePaws(c, g.paws.near.filter((_, i) => ov.includes(i ? 'HL' : 'FL')));
     }, 0.5, 0.45, g.crispN, over.getContext('2d'), ['FL', 'HL'].filter(k => ov.includes(k)).map(k => {
-      const L = g.legs[k], p = k === 'FL' ? L.elbow : L.hj;
-      return [V((p.x + SPR.OX) * s, (p.y + SPR.OY) * s), (k === 'FL' ? 8.5 : 11) * s];
+      const L = g.legs[k], p = k === 'FL' ? L.sj : L.hj;
+      return [V((p.x + SPR.OX) * s, (p.y + SPR.OY) * s), (k === 'FL' ? 10 : 11) * s];
     }));
     if (over) { o.setTransform(1, 0, 0, 1, 0, 0); o.drawImage(over, 0, 0); }
-    if (P.tailFront) tailLayer();
 
     // детали: уши внутри, нос, рот, язычок, усы
     setT(o);
