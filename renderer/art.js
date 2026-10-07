@@ -337,8 +337,8 @@ const Art = (() => {
   };
   // припала к земле перед прыжком: лопатки выше спины, лапы под собой
   const CROUCH = {
-    H: [-15, -22.5], S: [14, -15.5], arch: 1.6, scap: 1.4, flip: 0,
-    feet: { FL: [23, FY], FR: [26, FY], HL: [-10, FY], HR: [-7, FY] }, meta: { HL: 1.3, HR: 1.3 }, carp: { FL: 0.75, FR: 0.75 },
+    H: [-14, -26], S: [14, -19], arch: 1.2, scap: 1.4, flip: 0,
+    feet: { FL: [21, FY], FR: [24, FY], HL: [-12, FY], HR: [-9, FY] }, meta: { HL: 0.95, HR: 0.95 }, carp: { FL: 0.6, FR: 0.6 },
     neck: 0.22, neckLen: 11, headTilt: 0.05, ears: 0.25, tongue: 0,
     tail: TAIL(3.2, 0.15), tailFront: 0,
   };
@@ -461,7 +461,7 @@ const Art = (() => {
     }
     // ext: +1 — вытянутый полёт, −1 — сбор
     const ext = wave(0.43);
-    q.H[0] = -17 - 4.5 * ext; q.S[0] = 15 + 3 * ext; q.arch = 1.4 - 4 * ext;
+    q.H[0] = -17 - 1.5 * ext; q.S[0] = 15 + 1.5 * ext; q.arch = 1.6 - 3 * ext;
     // корпус качается плавно: круп ниже всего на опоре задних, грудь — на опоре передних; в полётах тело чуть выше
     const up = 1 * Math.cos(2 * TAU * (ph - 0.46));
     q.H[1] = -33.4 + 2 * wave(0.2) - up; q.S[1] = -31.2 + 2 * wave(0.72) - up;
@@ -471,12 +471,12 @@ const Art = (() => {
     return q;
   }
   const POUNCE = [
-    edit(CROUCH, q => { q.H = [-16, -16.5]; q.ears = 0.45; }),
+    edit(CROUCH, q => { q.H = [-14, -22]; q.ears = 0.45; }),
     // толчок: задние лапы почти выпрямлены и ещё на земле, тело вытянуто вперёд-вверх
-    edit(CROUCH, q => { q.H = [-15, -27.5]; q.S = [20, -35]; q.arch = -0.5; q.feet = { FL: [45, -21], FR: [41, -18], HL: [-46, FY], HR: [-43, FY] }; q.meta = { HL: -0.55, HR: -0.55 }; q.carp = { FL: null, FR: null }; q.neck = 0.45; q.ears = 0.45; q.tail = TAIL(3.3, 0.1); }),
-    edit(CROUCH, q => { q.H = [-23, -29]; q.S = [20, -31]; q.arch = -2; q.feet = { FL: [52, -27], FR: [49, -24], HL: [-60, -16], HR: [-62, -13] }; q.meta = { HL: -1.2, HR: -1.2 }; q.carp = { FL: null, FR: null }; q.neck = 0.4; q.ears = 0.5; q.tail = TAIL(2.75, 0.35); }),
-    edit(CROUCH, q => { q.H = [-20, -28]; q.S = [19, -26]; q.arch = 1; q.feet = { FL: [45, -9], FR: [42, -7], HL: [-57, -17], HR: [-59, -14] }; q.meta = { HL: -1.25, HR: -1.25 }; q.carp = { FL: null, FR: null }; q.neck = 0.3; q.ears = 0.45; q.tail = TAIL(2.8, 0.5); }),
-    edit(CROUCH, q => { q.H = [-16, -24]; q.S = [16, -17]; q.arch = 2; q.feet = { FL: [32, FY], FR: [29, FY], HL: [-22, -6], HR: [-25, -4.5] }; q.meta = { HL: 0.35, HR: 0.35 }; q.ears = 0.35; }),
+    edit(CROUCH, q => { q.H = [-14, -27.5]; q.S = [17, -37]; q.arch = 0; q.feet = { FL: [42, -24], FR: [38, -21], HL: [-44, FY], HR: [-41, FY] }; q.meta = { HL: -0.55, HR: -0.55 }; q.carp = { FL: null, FR: null }; q.neck = 0.45; q.ears = 0.45; q.tail = TAIL(3.3, 0.1); }),
+    edit(CROUCH, q => { q.H = [-17, -30]; q.S = [16, -32]; q.arch = -1; q.feet = { FL: [48, -27], FR: [45, -24], HL: [-50, -9], HR: [-52, -6] }; q.meta = { HL: -1.0, HR: -1.0 }; q.carp = { FL: null, FR: null }; q.neck = 0.4; q.ears = 0.5; q.tail = TAIL(2.45, 0.5); }),
+    edit(CROUCH, q => { q.H = [-17, -29]; q.S = [15, -25]; q.arch = 1.5; q.feet = { FL: [40, -7], FR: [37, -5], HL: [-48, -10], HR: [-50, -7] }; q.meta = { HL: -1.0, HR: -1.0 }; q.carp = { FL: null, FR: null }; q.neck = 0.3; q.ears = 0.45; q.tail = TAIL(2.4, 0.6); }),
+    edit(CROUCH, q => { q.H = [-15, -27]; q.S = [15, -20]; q.arch = 2.5; q.feet = { FL: [32, FY], FR: [29, FY], HL: [-22, -6], HR: [-25, -4.5] }; q.meta = { HL: 0.35, HR: 0.35 }; q.ears = 0.35; }),
     edit(CROUCH, q => { q.feet.FL = [29, FY]; q.feet.FR = [26, FY]; q.ears = 0.3; }),
   ];
   const BAT_PAW = [[20, FY], [24, -14], [29, -18], [34, -8], [32, -2.4], [26, -5]];
