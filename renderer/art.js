@@ -107,6 +107,7 @@ const Art = (() => {
   // Зад: тазобедренный сустав (HJ) у верха крупа; бедро вперёд-вниз, колено у паха на линии живота; голень
   //   назад-вниз с икрой и ахилловым сухожилием; пяточный бугор; длинная плюсна; кошка стоит на пальцах.
   //   Бедро — широкая мышечная масса от таза до колена, сзади — от седалищного бугра (ISCH) к икре.
+  // sag — лёжа живот оседает на землю между бёдрами и локтями.
   // Точка лапы в позе — пальцевый сустав (основание пальцев), сами пальцы лежат от него вперёд.
   // flip — лёжа на спине, лапы вверх. over — ближние лапы, которые рисуются поверх тела своим слоем.
   const SCAP = 10, HUM = 14.2, RAD = 13.1, CARP = 4.7, FEMUR = 15, TIBIA = 16, META = 9.7;
@@ -153,7 +154,7 @@ const Art = (() => {
     const croup = (d, a) => add(add(H, uH, -d * Math.cos(a)), nH, d * Math.sin(a));
     for (const [d, a, top, bot] of CROUP) chain.push([croup(d, a), flip ? bot : top, flip ? top : bot]);
     for (let i = 0; i <= 14; i++) {
-      const t = i / 14, top = prof(t, 1) + scap * 1.3 * gauss(t, 0.88, 0.15), bot = prof(t, 2);
+      const t = i / 14, top = prof(t, 1) + scap * 1.3 * gauss(t, 0.88, 0.15), bot = prof(t, 2) + (P.sag || 0) * gauss(t, 0.45, 0.32);
       chain.push([qb(H, C, S, t), flip ? bot : top, flip ? top : bot]);
     }
     const rumpC = atH(0.8, 1.6), chestC = atS(1.6, 0.8);
@@ -309,24 +310,24 @@ const Art = (() => {
   };
   // «буханка»: лежит на груди, предплечья и плюсны на земле
   const LOAF = {
-    H: [-13, -12.8], S: [10, -14.6], arch: 4.2, scap: 0.2, flip: 0,
+    H: [-13, -12.4], S: [10, -14], arch: 3.2, sag: 4, scap: 0.2, flip: 0,
     feet: { FL: [17, FY], FR: [19.5, FY], HL: [-2, FY], HR: [1, FY] }, meta: { HL: 1.5, HR: 1.5 }, carp: { FL: 1.45, FR: 1.45 },
     neck: 1.05, neckLen: 9, headTilt: 0.04, ears: 0.05, tongue: 0,
     tail: TAIL(4.5, 2, 34), tailFront: 1,
   };
   // спит клубком: спина круглым куполом, голова уткнута вниз к лапам, хвост укрывает нос
   const CURL = {
-    H: [-10, -11.6], S: [8, -12], arch: 6.5, scap: 0, flip: 0,
+    H: [-10, -11.6], S: [8, -12], arch: 6.5, sag: 5, scap: 0, flip: 0,
     feet: { FL: [14, FY], FR: [16, FY], HL: [2, FY], HR: [4, FY] }, meta: { HL: 1.5, HR: 1.5 }, carp: { FL: 1.45, FR: 1.45 },
     neck: -0.55, neckLen: 8.5, headTilt: -0.5, ears: 0.3, tongue: 0,
     tail: TAIL(4.5, 1.9, 40), tailFront: 1,
   };
-  // валяется на боку, вытянувшись: лапы вперёд и назад
+  // лежит, вытянув передние лапы вперёд и уложив на них голову; задние поджаты, круп и живот на земле
   const SPRAWL = {
-    H: [-20, -10], S: [11, -10.6], arch: -1.8, scap: 0, flip: 0,
-    feet: { FL: [44, -3.2], FR: [38, -2.4], HL: [-40, -4.5], HR: [-34, -3] }, meta: { HL: -1.2, HR: -1.3 }, carp: { FL: 1.5, FR: 1.3 },
-    neck: 0.08, neckLen: 11, headTilt: 0.12, ears: 0.15, tongue: 0,
-    tail: TAIL(3.3, -0.5), tailFront: 0,
+    H: [-17, -11.6], S: [10, -11.4], arch: 2, sag: 4, scap: 0.5, flip: 0,
+    feet: { FL: [33, FY], FR: [36, FY], HL: [-6, FY], HR: [-3, FY] }, meta: { HL: 1.5, HR: 1.5 }, carp: { FL: 1.5, FR: 1.5 },
+    neck: 0.02, neckLen: 9.5, headTilt: 0.1, ears: 0.15, tongue: 0,
+    tail: TAIL(3.3, -0.35), tailFront: 0,
   };
   // на спине пузом вверх, лапки кверху согнуты
   const ROLL = {
@@ -485,7 +486,7 @@ const Art = (() => {
   // «виолончель»: сидя на бедре, задняя лапа задрана вверх, голова к животу и внутренней стороне бедра
   const GROOM_LEG = edit(SIT, q => {
     q.H = [-7, -9.4]; q.S = [-2, -27]; q.arch = 4.5;
-    q.feet.HL = [16, -52]; q.meta.HL = Math.PI; q.feet.HR = [5, FY]; q.over = 'HL';
+    q.feet.HL = [3, -52]; q.meta.HL = Math.PI; q.feet.HR = [5, FY]; q.over = 'HL';
     q.feet.FL = [9, FY]; q.feet.FR = [12, FY];
     q.neck = -0.25; q.neckLen = 7.5; q.headTilt = -0.75; q.ears = 0.15; q.tongue = 1;
     q.tail = TAIL(3.6, 0.4); q.tailFront = 0;
