@@ -163,15 +163,15 @@
     const left = a.x <= b.x ? a : b, right = left === a ? b : a;
     const xm = clamp((a.x + b.x) / 2, minX() + 45 * k, maxX() - 45 * k);
     left.faceAfter = 1; right.faceAfter = -1;
-    set(left, 'walk', { target: xm - 39 * k, then: 'boopReady' });
-    set(right, 'walk', { target: xm + 39 * k, then: 'boopReady' });
+    set(left, 'walk', { target: xm - 51.5 * k, then: 'boopReady' });
+    set(right, 'walk', { target: xm + 51.5 * k, then: 'boopReady' });
   }
   // кто лижет — подходит и садится на расстоянии головы; второй ждёт, сидя
   function startAllogroom(c, o) {
     const side = Math.sign(o.x - c.x) || 1;
     c.partner = o; o.partner = c;
     set(o, 'agWait', { dur: 25 });
-    set(c, 'walk', { target: clamp(o.x - side * 33 * k, minX(), maxX()), then: 'agReady' });
+    set(c, 'walk', { target: clamp(o.x - side * 71 * k, minX(), maxX()), then: 'agReady' });
   }
   const FREE = ['idle', 'sit', 'walk', 'groom', 'wait', 'loaf', 'watch'];
   function bored(c) {
@@ -772,7 +772,7 @@
     }
     const excited = ['chase', 'crouch', 'pounce', 'bat', 'watch', 'notice', 'stalkCat', 'crouchCat', 'flee', 'roll'].includes(c.state);
     const dil = excited ? 1 : night() ? 0.7 : 0.25;
-    for (const [p, rx, ry] of [[a.eyeN, 2.5, 2.2], [a.eyeF, 2.15, 2.05]]) {
+    for (const [p, rx, ry] of a.eyes) {
       g.save();
       g.translate(p.x, p.y); g.rotate(a.eyeAng);
       if (st === 2) {
@@ -802,8 +802,10 @@
     g.save();
     g.translate(c.x, y); g.scale(c.dir, 1);
     g.drawImage(fr.c, -SPR.OX * k, -SPR.OY * k);
-    g.scale(k, k);
+    g.save(); g.scale(k, k);
     drawEyes(g, c, fr.anchors, eyeState(c));
+    g.restore();
+    if (fr.over) g.drawImage(fr.over, -SPR.OX * k, -SPR.OY * k);
     g.restore();
     if (c.state === 'wait' && !c.greeted) {
       const p = headScreen(c, -26), s = 1 + 0.12 * Math.sin(now * 4), w = sprites.heartO.width * s;
@@ -988,6 +990,7 @@
         sc.drawImage(fr.c, i * cw, row * ch);
         sc.save(); sc.translate(i * cw + SPR.OX * k, row * ch + SPR.OY * k); sc.scale(k, k);
         drawEyes(sc, fake(key), fr.anchors, ['curl', 'curlIn', 'sprawl'].includes(n) ? 0 : ['petted', 'groom', 'boop', 'groomLeg', 'legUp', 'lickOther', 'groomed'].includes(n) ? 1 : 2); sc.restore();
+        if (fr.over) sc.drawImage(fr.over, i * cw, row * ch);
       });
       sc.fillStyle = '#555'; sc.font = `${11 * k}px sans-serif`; sc.fillText(`${key} ${n}`, 4, row * ch + 13 * k);
       sc.strokeStyle = 'rgba(0,0,0,0.08)'; sc.beginPath(); sc.moveTo(0, row * ch + SPR.OY * k); sc.lineTo(sheet.width, row * ch + SPR.OY * k); sc.stroke();
@@ -1002,6 +1005,7 @@
       const f = Art.renderFrame(ANIMS[n].pose(i), Art.LOOKS[key], s2);
       bc.drawImage(f.c, j * SPR.W * s2, 0);
       bc.save(); bc.translate(j * SPR.W * s2 + SPR.OX * s2, SPR.OY * s2); bc.scale(s2, s2); drawEyes(bc, fake(key), f.anchors, 2); bc.restore();
+      if (f.over) bc.drawImage(f.over, j * SPR.W * s2, 0);
     });
     out.closeup = big.toDataURL('image/png');
 
