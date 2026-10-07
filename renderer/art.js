@@ -233,13 +233,13 @@ const Art = (() => {
         // поднятая лапа (свой слой) — тоньше к запястью, а сама лапка крупнее: читается кисть, а не трубка
         const tp = over.includes(k) ? 0.74 : 1;
         parts.push(limb([[add(el, fa, -2.4), 3.4, 3.8], [el, 4, 4.6], [lerpV(el, w, 0.22), 4 * lerp(1, tp, 0.4), 4.1 * lerp(1, tp, 0.4)], [lerpV(el, w, 0.55), 3.4 * tp, 3.4 * tp],
-          [lerpV(el, w, 0.85), 2.9 * tp, 3 * tp], [w, 2.9 * tp, 3.2 * tp], [lerpV(w, foot, 0.5), 2.7 * tp, 2.8 * tp], [foot, 2.7, 2.6]]), ell(el.x, el.y, 4.1, 4.1, 0, 12));
+          [lerpV(el, w, 0.85), 2.9 * tp, 3 * tp], [w, 2.9 * tp, 3.2 * tp], [lerpV(w, foot, 0.5), 2.7 * tp, 2.8 * tp], [foot, 2.7, 2.6]]), ell(el.x, el.y, tp < 1 ? 3.4 : 4.1, tp < 1 ? 3.4 : 4.1, 0, 12));
         const pw = pawAt(foot, up, tp < 1 ? 4.1 : 3.5);
         paw = pw.poly;
         legs[k] = { paw: pw.c, pawF: pw.f, pawR: pw.rx, foot, elbow: el, wrist: w, sj: SJ, top: T };
         // подгрудок: от плечевого сустава грудь плавно сходит к предплечью, плечо не торчит ступенькой
         if (!flip) inner2.push([atS(7.5, 0.5), add(SJ, V(3.2, 1.5)), add(lerpV(SJ, el, 0.6), V(5, 2.2)), add(el, fa, 3.5), add(el, V(-2, -3)), atS(-3, 6)]);
-        if (over.includes(k)) parts.push(limb([[add(SJ, ua, -2), 2.4, 3], [SJ, 3, 3.8], [lerpV(SJ, el, 0.5), 3.5, 4.4], [el, 3.6, 4.3], [add(el, ua, 1.6), 2.8, 3.2]]));
+        if (over.includes(k)) parts.push(limb([[add(SJ, ua, -1), 2, 2.2], [SJ, 2.5, 2.8], [lerpV(SJ, el, 0.5), 2.9, 3.2], [el, 3.2, 3.6], [add(el, ua, 1.4), 2.6, 2.8]]));
         if (!farLeg) muscles.push(arm);
         skel.push([T, SJ, el, w, foot]);
       } else {
@@ -272,7 +272,7 @@ const Art = (() => {
     const tail = [];
     let tp = croup(TAIL_ROOT[0], TAIL_ROOT[1]), th = P.tail.a;
     const TN = 14, TL = P.tail.len || 38;
-    const tw = i => 3.3 + 2.1 * Math.sin(Math.PI * Math.pow(i / TN, 0.75)) - 1.9 * Math.pow(i / TN, 2.5); // пушистый: шире к середине, к кончику у́же
+    const tw = i => 2.9 + 1.2 * Math.sin(Math.PI * Math.pow(i / TN, 0.75)) - 1.5 * Math.pow(i / TN, 2.5); // пушистый: шире к середине, к кончику у́же
     tail.push(tp);
     for (let i = 1; i <= TN; i++) {
       const t = i / TN;
@@ -295,7 +295,7 @@ const Art = (() => {
     A.paw = legs.FL.paw;
     A.top = Math.min(...head.flat().map(p => p.y), ...chain.map(c => c[0].y - c[1]));
     A.body = lerpV(H, S, 0.5);
-    return { H, S, C, u, n: V(n.x * sg, n.y * sg), uS, nS, ang: Math.atan2(u.y, u.x), hp, body, crisp, crispN, far, legsN, paws, tail, tailParts, legs, muscles, skel, anchors: A, flip, sg };
+    return { H, S, C, u, n: V(n.x * sg, n.y * sg), uS, nS, ang: Math.atan2(u.y, u.x), hp, body, crisp, crispN, far, legsN, paws, tail, tw, tailParts, legs, muscles, skel, anchors: A, flip, sg };
   }
 
   // ---------- позы ----------
@@ -326,7 +326,7 @@ const Art = (() => {
     H: [-10, -11.6], S: [8, -12], arch: 6.5, sag: 5, scap: 0, flip: 0,
     feet: { FL: [14, FY], FR: [16, FY], HL: [2, FY], HR: [4, FY] }, meta: { HL: 1.5, HR: 1.5 }, carp: { FL: 1.45, FR: 1.45 },
     neck: -0.55, neckLen: 8.5, headTilt: -0.5, ears: 0.3, tongue: 0,
-    tail: { a: 4.6, curl: 1.75, wave: 1.2, ph: 1.57, len: 47 }, tailFront: 1,
+    tail: { a: 5.0, curl: 1.15, wave: 1.3, ph: 1.57, len: 46 }, tailFront: 1,
   };
   // растянулся на животе: передние вытянуты вперёд, задние отброшены назад подошвами кверху, голова приподнята
   const SPRAWL = {
@@ -692,14 +692,31 @@ const Art = (() => {
       if (look.tabby) {
         c.filter = `blur(${0.5 * s}px)`;
         for (let i = 3; i < g.tail.length - 1; i += 2) {
-          const a = g.tail[i - 1], b = g.tail[i + 1], d = sub(b, a), l = len(d) || 1, nn = V(-d.y / l * 5.4, d.x / l * 5.4);
-          stripe(c, add(g.tail[i], nn), add(g.tail[i], nn, -1), 1.6, look.stripe, 0.6);
+          const a = g.tail[i - 1], b = g.tail[i + 1], d = sub(b, a), l = len(d) || 1, nn = V(-d.y / l * 4.2, d.x / l * 4.2);
+          stripe(c, add(g.tail[i], nn), add(g.tail[i], nn, -1), 1.5, look.stripe, 0.6);
         }
         c.filter = 'none';
       }
+      if (!P.tailFront) {
+        const b = mk(W, H), bc = b.getContext('2d');
+        setT(bc); bc.fillStyle = '#000'; fillEach(bc, g.body);
+        const m = soften(b, s), r = mk(W, H), rc = r.getContext('2d'), rad = 0.85 * s, root = g.tail[0];
+        for (let i = 0; i < 10; i++) rc.drawImage(m, Math.cos(i / 10 * TAU) * rad, Math.sin(i / 10 * TAU) * rad);
+        rc.globalCompositeOperation = 'source-in'; rc.fillStyle = look.ink; rc.fillRect(0, 0, W, H);
+        rc.globalCompositeOperation = 'destination-out'; rc.drawImage(m, 0, 0);
+        setT(rc);
+        rc.globalCompositeOperation = 'destination-in'; rc.beginPath(); for (const p of g.tailParts) trace(rc, p); rc.fill();
+        rc.globalCompositeOperation = 'destination-out';
+        const gr = rc.createRadialGradient(root.x, root.y, 3, root.x, root.y, 9);
+        gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        rc.fillStyle = gr; rc.fillRect(root.x - 9, root.y - 9, 18, 18);
+        c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 0.5; c.drawImage(r, 0, 0); c.restore();
+      }
       if (P.tailFront) {
         c.filter = `blur(${0.35 * s}px)`; c.strokeStyle = hexA(look.ink, 0.5); c.lineWidth = 1; c.lineJoin = 'round';
-        c.beginPath(); trace(c, g.tailParts[0]); c.stroke(); c.filter = 'none';
+        const n = g.tail.length, side = sgn => g.tail.map((p, i) => { const a = g.tail[Math.max(0, i - 1)], b = g.tail[Math.min(n - 1, i + 1)], d = unit(sub(b, a)), w = g.tw(i); return V(p.x + d.y * w * sgn, p.y - d.x * w * sgn); });
+        const L = side(1).slice(3), R = side(-1).slice(3).reverse(), pl = L.concat(R);
+        c.beginPath(); pl.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)); c.stroke(); c.filter = 'none';
       }
     };
     // мышечная масса читается мягкой тенью по её краю (бедро, плечо), как в рисунке с натуры
@@ -778,7 +795,7 @@ const Art = (() => {
       whitePaws(c, g.paws.near.filter((_, i) => ov.includes(i ? 'HL' : 'FL')));
     }, 0.5, 0.45, g.crispN, over.getContext('2d'), ['FL', 'HL'].filter(k => ov.includes(k)).map(k => {
       const L = g.legs[k], p = k === 'FL' ? L.sj : L.hj;
-      return [V((p.x + SPR.OX) * s, (p.y + SPR.OY) * s), (k === 'FL' ? 10 : 11) * s];
+      return [V((p.x + SPR.OX) * s, (p.y + SPR.OY) * s), (k === 'FL' ? 13 : 11) * s];
     }));
     if (over) { o.setTransform(1, 0, 0, 1, 0, 0); o.drawImage(over, 0, 0); }
 
